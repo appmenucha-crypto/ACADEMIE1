@@ -84,7 +84,7 @@ DATABASES = {
         'NAME': 'formation_vh_db',
         'USER': 'esther',
         'PASSWORD': '123456',
-        'HOST': '127.0.0.1', # Internal host
+        'HOST': 'academievh-formationvhdb-ksxu1x', # Internal host
         'PORT': '5433',  # Internal port
     }
 }
