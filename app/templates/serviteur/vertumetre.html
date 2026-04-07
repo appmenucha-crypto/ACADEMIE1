@@ -37,29 +37,25 @@
             <h2 class="text-2xl sm:text-3xl font-bold mb-2">Remplissez votre Vertumètre</h2>
             <p class="text-lg sm:text-xl">Évaluez votre vie de prière cette semaine</p>
         </div>
-        <form method="post" class="glass-panel p-4 sm:p-8 space-y-6 sm:space-y-8">
+        <form method="post" class="glass-panel p-3 sm:p-6 space-y-4 sm:space-y-6">
             {% csrf_token %}
             {{ form.non_field_errors }}
-            <div class="grid md:grid-cols-1 gap-8">
+            <div class="grid grid-cols-1 gap-4 sm:gap-6">
                 {% for field in form %}
-                    <div class="question-item p-4 sm:p-8 bg-white/80 backdrop-blur-xl rounded-3xl border border-white/50 shadow-xl hover:shadow-2xl transition-all">
-                        <label class="block text-xl font-bold text-charcoal mb-6">{{ field.label }}</label>
-                        {{ field }}
-                        {% if field.help_text %}
-                            <p class="text-sm text-gray-500 mt-2">{{ field.help_text }}</p>
-                        {% endif %}
+                    <div class="question-item p-4 sm:p-6 bg-white/80 backdrop-blur-xl rounded-2xl border border-white/50 shadow-md hover:shadow-xl transition-all">
+                        <label class="block text-base sm:text-lg font-bold text-charcoal mb-4">{{ field.label }}</label>
+                        <div class="text-sm sm:text-base">{{ field }}</div>
                         {% if field.errors %}
-                            <div class="mt-2 p-3 bg-red-100 border border-red-400 text-red-700 rounded-xl">
+                            <div class="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm">
                                 {{ field.errors }}
                             </div>
                         {% endif %}
                     </div>
                 {% endfor %}
             </div>
-            <div class="flex justify-center pt-8 border-t border-gray-200">
-                <button type="submit" class="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white px-8 py-4 sm:px-12 sm:py-6 rounded-3xl font-bold text-lg sm:text-xl shadow-2xl hover:shadow-3xl transition-all transform hover:-translate-y-1">
-                    <i class="fas fa-paper-plane mr-3"></i>
-                    Envoyer au Pasteur
+            <div class="flex justify-center pt-6 border-t border-gray-200">
+                <button type="submit" class="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white px-8 py-4 rounded-2xl font-bold text-base sm:text-lg shadow-xl transition-all">
+                    <i class="fas fa-paper-plane mr-2"></i>Envoyer au Pasteur
                 </button>
             </div>
         </form>
@@ -73,7 +69,21 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block extra_css %}
+<style>
+    /* Radio et checkbox responsive */
+    .question-item ul { list-style: none; padding: 0; margin: 0; }
+    .question-item li { margin-bottom: 0.5rem; }
+    .question-item input[type="radio"],
+    .question-item input[type="checkbox"] {
+        width: 1.1rem; height: 1.1rem; margin-right: 0.5rem; flex-shrink: 0; cursor: pointer;
+    }
+    .question-item label { display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; line-height: 1.4; }
+    @media (max-width: 640px) {
+        .question-item label { font-size: 0.85rem; }
+    }
+</style>
+{% endblock %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-disable submitted fields

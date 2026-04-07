@@ -74,58 +74,77 @@
 </div>
 
 {% if formations %}
-<div class="overflow-x-auto">
+<!-- Mobile: cards, Desktop: table -->
+<div class="block sm:hidden space-y-3">
+    {% for sf in formations %}
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                {{ sf.formation.name|slice:":2"|upper }}
+            </div>
+            <h3 class="font-semibold text-charcoal text-sm flex-1 min-w-0 truncate">{{ sf.formation.name }}</h3>
+        </div>
+        <div class="flex items-center justify-between">
+            <div>
+                {% if sf.display_status == 'valid' %}
+                    <span class="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold border border-emerald-100"><i class="fas fa-check-circle mr-1"></i>Validé · {{ sf.score_20|floatformat:1 }}/20</span>
+                {% elif sf.display_status == 'expired' %}
+                    <span class="px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100"><i class="fas fa-times-circle mr-1"></i>Expiré</span>
+                {% else %}
+                    <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold border border-blue-100"><i class="fas fa-spinner fa-spin mr-1"></i>En cours</span>
+                {% endif %}
+            </div>
+            {% if sf.display_status != 'valid' %}
+            <a href="{% url 'traning:serviteur_formation_detail' sf.formation.pk %}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold text-xs transition-all">
+                Reprendre
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="hidden sm:block overflow-x-auto">
     <table class="w-full">
         <thead>
-            <tr class="bg-gray-50/50 border-b border-gray-100 text-xs sm:text-sm">
-                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider">Formation</th>
-                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Score</th>
-                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider">Statut</th>
-                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Date début/fin</th>
-                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+            <tr class="bg-gray-50/50 border-b border-gray-100 text-xs">
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Formation</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Score</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Statut</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Dates</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Actions</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
             {% for sf in formations %}
             <tr class="hover:bg-blue-50/30 transition-colors">
-                <td class="px-6 py-5">
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs sm:text-sm mr-2 sm:mr-4">
+                <td class="px-4 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                             {{ sf.formation.name|slice:":2"|upper }}
                         </div>
-                        <h3 class="font-semibold text-charcoal">{{ sf.formation.name }}</h3>
+                        <h3 class="font-semibold text-charcoal text-sm">{{ sf.formation.name }}</h3>
                     </div>
                 </td>
-                <td class="px-6 py-5 hidden sm:table-cell">
-                    <span class="px-4 py-2 rounded-full text-sm font-semibold 
-                        {% if sf.display_status == 'valid' %}bg-emerald-100 text-emerald-700
-                        {% elif sf.display_status == 'expired' %}bg-red-100 text-red-700
-                        {% else %}bg-blue-100 text-blue-700{% endif %}">
-                        {% if sf.display_status == 'valid' %}{{ sf.score_20|floatformat:1 }}/20{% else %}-- / 20{% endif %}
+                <td class="px-4 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold {% if sf.display_status == 'valid' %}bg-emerald-100 text-emerald-700{% elif sf.display_status == 'expired' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {% if sf.display_status == 'valid' %}{{ sf.score_20|floatformat:1 }}/20{% else %}--/20{% endif %}
                     </span>
                 </td>
-                <td class="px-6 py-5 text-xs sm:text-sm">
+                <td class="px-4 py-4">
                     {% if sf.display_status == 'valid' %}
-                        <span class="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold border border-emerald-100 italic">
-                            <i class="fas fa-check-circle mr-1"></i>Validé
-                        </span>
+                        <span class="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold border border-emerald-100"><i class="fas fa-check-circle mr-1"></i>Validé</span>
                     {% elif sf.display_status == 'expired' %}
-                        <span class="px-4 py-2 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100 italic">
-                            <i class="fas fa-times-circle mr-1"></i>Non validé (Expiré)
-                        </span>
+                        <span class="px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100"><i class="fas fa-times-circle mr-1"></i>Expiré</span>
                     {% else %}
-                        <span class="px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-xs font-bold border border-blue-100 italic">
-                            <i class="fas fa-spinner fa-spin mr-1"></i>En cours
-                        </span>
+                        <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold border border-blue-100"><i class="fas fa-spinner fa-spin mr-1"></i>En cours</span>
                     {% endif %}
                 </td>
-                <td class="px-6 py-5 text-xs text-gray-500 hidden md:table-cell">
-                    {{ sf.date_debut|date:"d/m H:i" }}<br>
-                    {{ sf.date_soumission|date:"d/m H:i"|default:"—" }}
+                <td class="px-4 py-4 text-xs text-gray-500 hidden md:table-cell">
+                    {{ sf.date_debut|date:"d/m H:i" }}<br>{{ sf.date_soumission|date:"d/m H:i"|default:"—" }}
                 </td>
-                <td class="px-6 py-5 text-right">
+                <td class="px-4 py-4">
                     {% if sf.display_status != 'valid' %}
-                    <a href="{% url 'traning:serviteur_formation_detail' sf.formation.pk %}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-xs transition-all">
+                    <a href="{% url 'traning:serviteur_formation_detail' sf.formation.pk %}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold text-xs transition-all">
                         Reprendre
                     </a>
                     {% endif %}

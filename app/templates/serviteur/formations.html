@@ -4,17 +4,17 @@
 {% block subtitle %}Découvrez les formations disponibles{% endblock %}
 
 {% block serviteur_content %}
-<div class="glass-panel p-4 sm:p-8 rounded-3xl">
-    <div class="flex items-center justify-between mb-8">
-        <h1 class="text-3xl font-bold text-charcoal">Formations Disponibles</h1>
+<div class="glass-panel p-3 sm:p-6 rounded-3xl">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-xl sm:text-3xl font-bold text-charcoal">Formations Disponibles</h1>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
 
         {% for item in formations_data %} {# TODO: Make this responsive #}
         {% with formation=item.formation status=item.status score20=item.score20 %}
 
-        <div class="glass-card bg-white/60 backdrop-blur-xl border border-white/30 rounded-3xl p-8 hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
+        <div class="glass-card bg-white/60 backdrop-blur-xl border border-white/30 rounded-2xl p-5 sm:p-8 hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
 
             {% if status == 'completed' %}
                 style="opacity: 0.6; pointer-events: none; cursor: default;"
@@ -24,12 +24,12 @@
         >
 
             <!-- IMAGE -->
-            <div class="h-40 bg-gradient-to-br from-accent-blue to-blue-500 rounded-2xl mb-6 flex items-center justify-center">
+            <div class="h-28 sm:h-40 bg-gradient-to-br from-accent-blue to-blue-500 rounded-xl sm:rounded-2xl mb-4 sm:mb-6 flex items-center justify-center">
                 <i class="fas fa-book-open text-4xl text-white opacity-80"></i>
             </div>
 
             <!-- TITRE -->
-            <h3 class="text-xl font-bold text-charcoal mb-3 group-hover:text-accent-blue transition-colors">
+            <h3 class="text-base sm:text-xl font-bold text-charcoal mb-2 sm:mb-3 group-hover:text-accent-blue transition-colors">
                 {{ formation.name }}
             </h3>
 
