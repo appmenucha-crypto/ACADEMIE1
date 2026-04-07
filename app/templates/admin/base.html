@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin - Formation VH{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+'sidebar-light': '#fff8e1',
+                        'admin-bg': '#F4F7FA',
+                        'accent-gold': '#F59E0B',
+                        'success-green': '#2ECC71',
+                        'danger-red': '#E74C3C',
+                        'charcoal': '#34495E',
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.4s ease-out forwards',
+                        'slide-in': 'slideIn 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        slideIn: {
+                            '0%': { transform: 'translateX(-20px)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+body { background-color: #facc15; color: #1f2937; overflow-x: hidden; }
+        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); }
+        .sidebar-item { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.sidebar-item.active { background-color: rgba(245, 158, 11, 0.1); border-left: 4px solid #F59E0B; color: #F59E0B; }
+.sidebar-item:not(.active):hover { background-color: rgba(245, 158, 11, 0.15); padding-left: 1.75rem; }
+        .section-content { display: none; }
+        .section-content.active { display: block; animation: fadeIn 0.4s ease-out; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="font-sans antialiased">
+    <!-- Sidebar -->
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
+    
+    <aside id="sidebar" class="fixed left-0 top-0 h-screen w-[260px] bg-sidebar-light text-gray-800 transition-transform duration-300 z-50 flex flex-col shadow-xl -translate-x-full md:translate-x-0">
+
+<div class="p-8 border-b border-yellow-200 flex flex-col items-center gap-4 bg-white/80">
+            <img src="/media/Logo.png" alt="Logo Formation VH" class="w-40 h-40 object-contain">
+
+            <div class="text-center py-6 px-8 bg-gradient-to-b from-yellow-50 to-yellow-100 rounded-3xl shadow-2xl border border-yellow-200 ring-2 ring-yellow-100/50">
+                <div class="w-20 h-20 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center shadow-2xl mx-auto mb-4 ring-4 ring-yellow-200/50">
+                    <span class="text-3xl font-black text-white drop-shadow-lg">A</span>
+                </div>
+                <div class="text-lg font-bold text-gray-800 mb-1">admin</div>
+                <div class="text-sm font-semibold text-yellow-700 uppercase tracking-wide bg-white/60 px-4 py-1 rounded-full inline-block shadow-md">Administrateur</div>
+            </div>
+        </div>
+        <nav class="flex-1 px-6 py-6 space-y-3 bg-gradient-to-b from-transparent to-yellow-50/50 overflow-y-auto">
+            <a href="{% url 'traning:admin_dashboard' %}" class="sidebar-item-btn group flex items-center px-6 py-4 rounded-xl text-base font-semibold hover:bg-green-500/20 hover:text-green-700 hover:border-green-300 transition-all border border-transparent hover:border-green-300 bg-white/50 shadow-sm {% if request.resolver_match.url_name == 'admin_dashboard' %}bg-green-100 text-green-800 border-green-300 ring-2 ring-green-200/50 shadow-md{% endif %}">
+                <i class="fas fa-th-large w-5 mr-3 text-lg"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{% url 'traning:admin_serviteurs' %}" class="sidebar-item-btn group flex items-center px-6 py-4 rounded-xl text-base font-semibold hover:bg-green-500/20 hover:text-green-700 hover:border-green-300 transition-all border border-transparent hover:border-green-300 bg-white/50 shadow-sm {% if request.resolver_match.url_name == 'admin_serviteurs' %}bg-green-100 text-green-800 border-green-300 ring-2 ring-green-200/50 shadow-md{% endif %}">
+                <i class="fas fa-users w-5 mr-3 text-lg"></i>
+                <span>Serviteurs</span>
+            </a>
+            <a href="{% url 'traning:admin_courses' %}" class="sidebar-item-btn group flex items-center px-6 py-4 rounded-xl text-base font-semibold hover:bg-green-500/20 hover:text-green-700 hover:border-green-300 transition-all border border-transparent hover:border-green-300 bg-white/50 shadow-sm {% if request.resolver_match.url_name == 'admin_courses' %}bg-green-100 text-green-800 border-green-300 ring-2 ring-green-200/50 shadow-md{% endif %}">
+                <i class="fas fa-book w-5 mr-3 text-lg"></i>
+                <span>Cours</span>
+            </a>
+            <a href="{% url 'traning:admin_questionnaires' %}" class="sidebar-item-btn group flex items-center px-6 py-4 rounded-xl text-base font-semibold hover:bg-green-500/20 hover:text-green-700 hover:border-green-300 transition-all border border-transparent hover:border-green-300 bg-white/50 shadow-sm {% if request.resolver_match.url_name == 'admin_questionnaires' %}bg-green-100 text-green-800 border-green-300 ring-2 ring-green-200/50 shadow-md{% endif %}">
+                <i class="fas fa-question-circle w-5 mr-3 text-lg"></i>
+                <span>Questionnaires</span>
+            </a>
+            <a href="{% url 'traning:admin_results' %}" class="sidebar-item-btn group flex items-center px-6 py-4 rounded-xl text-base font-semibold hover:bg-green-500/20 hover:text-green-700 hover:border-green-300 transition-all border border-transparent hover:border-green-300 bg-white/50 shadow-sm {% if request.resolver_match.url_name == 'admin_results' %}bg-green-100 text-green-800 border-green-300 ring-2 ring-green-200/50 shadow-md{% endif %}">
+                <i class="fas fa-chart-line w-5 mr-3 text-lg"></i>
+                <span>Résultats</span>
+            </a>
+            <a href="{% url 'traning:admin_vertumetres' %}" class="sidebar-item-btn group flex items-center px-6 py-4 rounded-xl text-base font-semibold hover:bg-green-500/20 hover:text-green-700 hover:border-green-300 transition-all border border-transparent hover:border-green-300 bg-white/50 shadow-sm {% if request.resolver_match.url_name == 'admin_vertumetres' %}bg-green-100 text-green-800 border-green-300 ring-2 ring-green-200/50 shadow-md{% endif %}">
+                <i class="fas fa-hands-praying w-5 mr-3 text-lg"></i>
+                <span>Vertumètres</span>
+            </a>
+        </nav>
+        <div class="mt-auto p-6 border-t border-yellow-200">
+            <a href="{% url 'traning:logout' %}" class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-4 px-6 rounded-2xl font-bold text-lg shadow-xl shadow-red-500/30 transition-all hover:scale-[1.02] hover:shadow-2xl border border-red-400 flex items-center justify-center gap-3">
+                <i class="fas fa-sign-out-alt text-xl"></i>
+                Déconnexion
+            </a>
+        </div>
+
+    </aside>
+
+    <!-- Main Content -->
+    <main class="ml-0 md:ml-[260px] transition-all duration-300 p-4 md:p-8 min-h-screen" style="background-color: #fff8e1;">
+        <!-- Header -->
+        <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 md:px-8 py-4 md:py-6 flex items-center justify-between shadow-sm mb-8">
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar()" class="md:hidden text-charcoal text-2xl p-2">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div>
+                    <h1 id="page-title" class="text-xl md:text-3xl font-bold text-charcoal">{% block page_title %}Dashboard{% endblock %}</h1>
+                    <p class="text-xs md:text-sm text-gray-500 mt-1">{% block subtitle %}{% endblock %}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 md:gap-4">
+                <div class="relative">
+                    <input type="text" placeholder="Recherche..." class="hidden lg:block bg-white border border-gray-200 rounded-full px-4 py-2.5 text-sm w-72 focus:ring-2 focus:ring-accent-gold/30 outline-none transition-all shadow-sm">
+                    <i class="fas fa-search absolute right-4 top-3 text-gray-400"></i>
+                </div>
+                <button class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-all relative">
+                    <i class="fas fa-bell"></i>
+                    <span class="absolute -top-1 -right-1 w-3 h-3 bg-danger-red rounded-full"></span>
+                </button>
+                <div class="flex items-center gap-3 cursor-pointer group">
+                        <span class="text-sm font-semibold text-charcoal group-hover:text-accent-gold transition-colors">{{ user.username }}</span>
+                    <div class="w-10 h-10 rounded-full bg-accent-gold flex items-center justify-center text-white font-bold text-sm shadow-lg">{{ user.username|slice:":1"|upper }}</div>
+                </div>
+            </div>
+        </header>
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        function switchTab(sectionId, title) {
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('a').classList.add('active');
+            document.getElementById('page-title').textContent = title;
+            document.querySelectorAll('.section-content').forEach(sec => sec.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        function notify(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-8 right-8 bg-charcoal text-white px-6 py-3 rounded-xl shadow-2xl z-[100] transform transition-all translate-y-20 opacity-0 flex items-center gap-3 text-sm font-medium';
+            toast.innerHTML = `<i class="fas fa-info-circle text-accent-gold"></i><span>${msg}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-y-20', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

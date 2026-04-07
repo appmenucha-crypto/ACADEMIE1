@@ -1,0 +1,79 @@
+{% extends 'admin/base.html' %}
+{% load vertumetre_extras %}
+
+{% block page_title %}Soumissions Vertumètres{% endblock %}
+{% block subtitle %}Suivi de la vie spirituelle des serviteurs.{% endblock %}
+
+{% block content %}
+<div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-bold text-charcoal">Dernières soumissions hebdomadaires</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-gray-50/50">
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Serviteur</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date de soumission</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Aperçu des réponses</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for submission in submissions %}
+                <tr class="hover:bg-gray-50/50 transition-all group">
+                    <td class="px-6 py-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-sm">
+                                {{ submission.serviteur.username|slice:":2"|upper }}
+                            </div>
+                            <div>
+                                <span class="text-sm font-bold text-charcoal block">{{ submission.serviteur.get_full_name|default:submission.serviteur.username }}</span>
+                                <span class="text-xs text-gray-500">@{{ submission.serviteur.username }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-5 text-sm text-gray-600">
+                        {{ submission.submitted_at|date:"d/m/Y H:i" }}
+                    </td>
+                    <td class="px-6 py-5">
+                        <div class="flex gap-1">
+                            {% for key, val in submission.answers.items|slice:":4" %}
+                                <span class="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400" title="{{ key }}: {{ val }}">
+                                    {{ val }}
+                                </span>
+                            {% endfor %}
+                            <span class="text-xs text-gray-400 self-center">...</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-5 text-right">
+                        <button onclick="toggleDetails('details-{{ submission.id }}')" class="bg-accent-blue/10 text-accent-blue px-4 py-2 rounded-lg text-xs font-bold hover:bg-accent-blue hover:text-white transition-all">
+                            Voir détails
+                        </button>
+                    </td>
+                </tr>
+                <tr id="details-{{ submission.id }}" class="hidden bg-gray-50/30">
+                    <td colspan="4" class="px-12 py-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {% for key, value in submission.answers.items %}
+                            <div class="p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+                                <p class="text-[10px] font-bold text-gray-400 uppercase mb-1">Question {{ key|slice:"1:" }}</p>
+                                <p class="text-sm text-charcoal font-medium">{{ value|get_choice_label:key }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function toggleDetails(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

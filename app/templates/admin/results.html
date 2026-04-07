@@ -1,0 +1,99 @@
+{% extends 'admin/base.html' %}
+
+{% block page_title %}Résultats{% endblock %}
+{% block subtitle %}Suivi des performances des étudiants.{% endblock %}
+
+{% block content %}
+
+<!-- Répartition Résultats -->
+{% if stats %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="glass-panel p-8 text-center">
+        <div class="text-3xl font-bold text-emerald-600">{{ stats.valide }}</div>
+        <div class="text-sm uppercase text-gray-500 tracking-wide">Validé</div>
+    </div>
+    <div class="glass-panel p-8 text-center">
+        <div class="text-3xl font-bold text-red-600">{{ stats.echoue }}</div>
+        <div class="text-sm uppercase text-gray-500 tracking-wide">Échoué</div>
+    </div>
+    <div class="glass-panel p-8 text-center">
+        <div class="text-3xl font-bold text-amber-600">{{ stats.en_cours }}</div>
+        <div class="text-sm uppercase text-gray-500 tracking-wide">En cours</div>
+    </div>
+</div>
+
+
+{% endif %}
+
+<div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-bold text-charcoal">Performances Étudiants Récentes</h3>
+        <a href="?export=pdf" class="text-sm font-semibold text-accent-blue hover:underline flex items-center gap-1">
+            Exporter PDF
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10l-5.5 5.5m0 0L1 13.5m6.5 6.5L12 11m0 0l5.5-5.5m0 0L23 8.5" />
+            </svg>
+        </a>
+
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-gray-50/50">
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Étudiant</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Cours</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Score /20</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date Soumission</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Statut</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for result in recent_results %}
+                <tr class="hover:bg-gray-50/50 transition-all group">
+                    <td class="px-6 py-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">{{ result.serviteur.username|slice:":2"|upper }}</div>
+                            <span class="text-sm font-medium text-charcoal">{{ result.serviteur.username }}</span>
+                            <div class="text-xs text-gray-500">({{ result.serviteur.first_name }} {{ result.serviteur.last_name|default:"" }})</div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-5">
+                        <span class="font-medium text-charcoal">{{ result.formation.name }}</span>
+                    </td>
+                    <td class="px-6 py-5 font-mono text-sm font-bold text-charcoal">{{ result.score_20|floatformat:1 }}/20</td>
+                    <td class="px-6 py-5 text-sm text-gray-600">{{ result.date_soumission|date:"d/m/Y H:i"|default:"—" }}</td>
+                    <td class="px-6 py-5">
+                        {% if result.display_statut == 1 %}
+                            <span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold border border-emerald-200">✅ Validé</span>
+                        {% elif result.display_statut == 0 %}
+                            <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold border border-red-200">❌ Échec</span>
+                        {% else %}
+                            <span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold border border-amber-200">⏳ En cours</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-16 text-center text-gray-500">
+                        <svg class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Aucun résultat</h3>
+                        <p>Aucun questionnaire soumis pour l'instant.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+
+
+<style>
+.success-green { color: #10b981; }
+.danger-red { color: #ef4444; }
+</style>
+{% endblock %}

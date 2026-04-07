@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Serviteur - Formation VH{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'admin-dark': '#2C3E50',
+                        'admin-bg': '#F4F7FA',
+                        'accent-blue': '#3498db',
+                        'success-green': '#2ECC71',
+                        'danger-red': '#E74C3C',
+                        'charcoal': '#34495E',
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #F4F7FA; color: #34495E; }
+        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); }
+        .sidebar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .sidebar-item { transition: all 0.2s; }
+        .sidebar-item.active { background-color: rgba(255, 255, 255, 0.2); border-left: 4px solid white; }
+        .sidebar-item:not(.active):hover { background-color: rgba(255, 255, 255, 0.1); padding-left: 1.75rem; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="font-sans antialiased">
+    <!-- Sidebar -->
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
+
+    <aside id="sidebar" class="fixed left-0 top-0 h-screen w-72 bg-gradient-to-b from-emerald-50/95 to-emerald-100/80 backdrop-blur-xl text-emerald-800 flex flex-col z-50 shadow-xl border-r-0 rounded-r-3xl transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="p-8 border-b border-white/20 flex flex-col items-center gap-4 pt-12">
+            <img src="/media/Logo.png" alt="Logo Formation VH" class="w-44 h-44 object-contain mb-6 drop-shadow-2xl" style="background: none;">
+            <div class="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/50 shadow-2xl">
+                {% if user.profile_photo %}
+                    <img src="{{ user.profile_photo.url }}" alt="{{ user.get_full_name }}" class="w-full h-full object-cover">
+                {% else %}
+                    <div class="w-full h-full bg-gradient-to-br from-white/30 to-white/10 flex items-center justify-center font-bold text-2xl text-white">
+                        {{ user.username|slice:":2"|upper }}
+                    </div>
+                {% endif %}
+            </div>
+            <div class="text-center">
+                <h2 class="font-bold text-xl tracking-tight text-emerald-700">Espace Serviteur</h2>
+                <p class="text-sm font-medium text-emerald-600">{{ user.get_full_name|default:user.username }}</p>
+            </div>
+        </div>
+        <div class="mx-6 border-t border-emerald-300/50"></div>
+        <nav class="flex-1 px-4 py-4 space-y-2">
+            <a href="{% url 'traning:serviteur_dashboard' %}" class="sidebar-item group flex items-center px-4 py-4 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'serviteur_dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt w-5 mr-4"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{% url 'traning:serviteur_formations' %}" class="sidebar-item group flex items-center px-4 py-4 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'serviteur_formations' %}active{% endif %}">
+                <i class="fas fa-play-circle w-5 mr-4"></i>
+                <span>Formations</span>
+            </a>
+            <a href="{% url 'traning:serviteur_vertumetre' %}" class="sidebar-item group flex items-center px-4 py-4 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'serviteur_vertumetre' %}active{% endif %}">
+                <i class="fas fa-hands-praying w-5 mr-4"></i>
+                <span>Vertumètre</span>
+            </a>
+        </nav>
+        <div class="p-4 border-t border-white/20">
+            <a href="{% url 'traning:logout' %}" class="flex items-center justify-center gap-3 w-full px-4 py-4 bg-danger-red hover:bg-red-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-danger-red/30 transition-all hover:scale-105 active:scale-95">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Déconnexion</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="ml-0 md:ml-72 min-h-screen p-4 sm:p-6 md:p-8 bg-emerald-50/90">
+        <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 md:px-8 py-4 md:py-6 flex items-center justify-between shadow-sm mb-8 -mx-4 md:-mx-8 -mt-4 md:-mt-8">
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar()" class="md:hidden text-charcoal text-2xl p-2">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div>
+                    <h1 class="text-xl md:text-3xl font-bold text-charcoal">{% block page_title %}Dashboard{% endblock %}</h1>
+                    <p class="text-xs md:text-sm text-gray-500 mt-1">{% block subtitle %}{% endblock %}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 md:gap-4">
+                <div class="relative">
+                    <input type="text" placeholder="Recherche..." class="hidden lg:block bg-white border border-gray-200 rounded-full px-4 py-2.5 text-sm w-72 focus:ring-2 focus:ring-emerald-500/30 outline-none transition-all shadow-sm">
+                    <i class="fas fa-search absolute right-4 top-3 text-gray-400"></i>
+                </div>
+                <button class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-all relative">
+                    <i class="fas fa-bell"></i>
+                    <span class="absolute -top-1 -right-1 w-3 h-3 bg-danger-red rounded-full"></span>
+                </button>
+                <div class="flex items-center gap-3 cursor-pointer group">
+                    <span class="text-sm font-semibold text-charcoal group-hover:text-emerald-600 transition-colors">{{ user.username }}</span>
+                    <div class="w-10 h-10 rounded-full overflow-hidden shadow-lg ring-2 ring-emerald-500/20">
+                        {% if user.profile_photo %}
+                            <img src="{{ user.profile_photo.url }}" alt="{{ user.username }}" class="w-full h-full object-cover">
+                        {% else %}
+                            <div class="w-full h-full bg-emerald-500 flex items-center justify-center text-white font-bold text-sm">
+                                {{ user.username|slice:":1"|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </header>
+        {% block content %}
+        <div class="glass-panel p-12">
+            {% block serviteur_content %}{% endblock %}
+        </div>
+        {% endblock %}
+    </main>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

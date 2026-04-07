@@ -1,0 +1,171 @@
+{% extends 'admin/base.html' %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block subtitle %}Vue d'ensemble et statistiques en temps réel{% endblock %}
+
+{% block content %}
+
+<!-- Cards améliorées -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+    <div class="glass-panel p-8 rounded-3xl border-l-4 border-emerald-400 group hover:shadow-2xl transition-all">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                <i class="fas fa-users text-2xl text-emerald-600"></i>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 font-medium">Étudiants</p>
+                <p class="text-3xl font-bold text-gray-900">{{ students_count|default:"0" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-panel p-8 rounded-3xl border-l-4 border-blue-400 group hover:shadow-2xl transition-all">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                <i class="fas fa-book text-2xl text-blue-600"></i>
+            </div>
+                <div>
+                <p class="text-sm text-gray-600 font-medium">Formations</p>
+                <p class="text-3xl font-bold text-gray-900">{{ formations_count|default:"0" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-panel p-8 rounded-3xl border-l-4 border-orange-400 group hover:shadow-2xl transition-all">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                <i class="fas fa-clock text-2xl text-orange-600"></i>
+            </div>
+            <div>
+<p class="text-sm text-gray-600 font-medium">En cours</p>
+                <p class="text-3xl font-bold text-gray-900">{{ pending_actions|default:"0" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-panel p-8 rounded-3xl border-l-4 border-purple-400 group hover:shadow-2xl transition-all">
+        <a href="{% url 'traning:admin_vertumetres' %}" class="block">
+            <div class="flex items-center gap-4 mb-4">
+                <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <i class="fas fa-hands-praying text-2xl text-purple-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 font-medium">Vertumètres</p>
+                    <p class="text-3xl font-bold text-gray-900">{{ vertumetre_count|default:"0" }}</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Graphiques vivants -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+
+    <!-- Pie chart statuts petit centré -->
+    <div class="glass-panel p-6 rounded-3xl flex flex-col items-center text-center max-w-md mx-auto">
+        <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <i class="fas fa-chart-pie text-emerald-500"></i>
+            Répartition résultats
+        </h3>
+
+
+        <div class="w-56 h-56">
+            <canvas id="statusChart" height="224" width="224"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Top performeurs -->
+<div class="glass-panel p-8 rounded-3xl">
+    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3">
+        <i class="fas fa-trophy text-yellow-500"></i>
+        Top 5 Serviteurs
+    </h3>
+    <div class="space-y-3">
+        {% for top in top_serviteurs %}
+        <div class="flex items-center justify-between p-4 bg-white/50 rounded-2xl hover:bg-white/70 transition-all">
+            <span class="font-semibold text-gray-900">{{ top.serviteur__username }}</span>
+            <div class="text-right">
+{{ top.avg_score|floatformat:1 }}/20
+                <p class="text-sm text-gray-600">{{ top.count }} formations</p>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-center text-gray-500 py-8">Aucune donnée</p>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Pie chart statuts
+    const ctx1 = document.getElementById('statusChart').getContext('2d');
+    new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+labels: ['✅ Validé', '❌ Échoué', '⏳ En cours'],
+            datasets: [{
+data: [{{ sf_stats.validated|default:0 }}, {{ sf_stats.failed|default:0 }}, {{ sf_stats.pending|default:0 }}],
+                backgroundColor: ['#10B981', '#EF4444', '#3B82F6'],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+
+    // Line chart récent
+    const ctx2 = document.getElementById('recentChart').getContext('2d');
+    new Chart(ctx2, {
+        type: 'line',
+        data: {
+labels: {{ recent_labels|safe|default:"[]" }},
+            datasets: [{
+                label: 'Score moyen /20',
+data: {{ recent_data|safe|default:"[]" }},
+                borderColor: '#10B981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#10B981',
+                pointBorderColor: '#fff',
+                pointHoverRadius: 8,
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 20,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '/20';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+});
+</script>
+
+{% endblock %}

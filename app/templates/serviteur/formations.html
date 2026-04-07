@@ -1,0 +1,85 @@
+{% extends 'serviteur/base.html' %}
+
+{% block page_title %}Mes Formations{% endblock %}
+{% block subtitle %}Découvrez les formations disponibles{% endblock %}
+
+{% block serviteur_content %}
+<div class="glass-panel p-4 sm:p-8 rounded-3xl">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold text-charcoal">Formations Disponibles</h1>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        {% for item in formations_data %} {# TODO: Make this responsive #}
+        {% with formation=item.formation status=item.status score20=item.score20 %}
+
+        <div class="glass-card bg-white/60 backdrop-blur-xl border border-white/30 rounded-3xl p-8 hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
+
+            {% if status == 'completed' %}
+                style="opacity: 0.6; pointer-events: none; cursor: default;"
+            {% else %}
+                onclick="window.location='{% url 'traning:serviteur_formation_detail' formation.pk %}'"
+            {% endif %}
+        >
+
+            <!-- IMAGE -->
+            <div class="h-40 bg-gradient-to-br from-accent-blue to-blue-500 rounded-2xl mb-6 flex items-center justify-center">
+                <i class="fas fa-book-open text-4xl text-white opacity-80"></i>
+            </div>
+
+            <!-- TITRE -->
+            <h3 class="text-xl font-bold text-charcoal mb-3 group-hover:text-accent-blue transition-colors">
+                {{ formation.name }}
+            </h3>
+
+            <!-- INFOS -->
+            <p class="text-gray-600 mb-4">
+                {{ formation.blocs.count }} bloc{{ formation.blocs.count|pluralize }}
+            </p>
+
+            <!-- PROGRESSION -->
+            {% if status == 'completed' %}
+                <div class="w-full bg-emerald-100 rounded-full h-3 mb-4">
+                    <div class="bg-emerald-500 h-3 rounded-full" style="width: 100%"></div>
+                </div>
+                <span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold text-sm">
+                    ✅ Terminé {{ score20 }}/20
+                </span>
+
+            {% elif status == 'in_progress' %}
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
+                    <div class="bg-gradient-to-r from-emerald-400 to-emerald-600 h-3 rounded-full" style="width: 60%"></div>
+                </div>
+                <span class="text-sm text-emerald-600 font-semibold">
+                    En cours
+                </span>
+
+            {% else %}
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
+                    <div class="bg-gray-400 h-3 rounded-full" style="width: 0%"></div>
+                </div>
+                <span class="text-sm text-gray-500 font-semibold">
+                    Pas commencé
+                </span>
+            {% endif %}
+
+        </div>
+
+        {% endwith %}
+        {% empty %}
+
+        <div class="col-span-full text-center py-20">
+            <i class="fas fa-search text-6xl text-gray-300 mb-6"></i>
+            <h3 class="text-2xl font-bold text-charcoal mb-2">
+                Aucune formation disponible
+            </h3>
+            <p class="text-gray-500">
+                Contactez l'administrateur pour ajouter des formations.
+            </p>
+        </div>
+
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

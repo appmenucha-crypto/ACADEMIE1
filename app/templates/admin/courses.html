@@ -1,0 +1,160 @@
+{% extends 'admin/base.html' %}
+
+{% block page_title %}Gestion des Cours{% endblock %}
+{% block subtitle %}Créez et gérez les formations pour vos étudiants.{% endblock %}
+
+{% block content %}
+<!-- Success Message -->
+{% if success_message %}
+<div id="success-toast" class="fixed top-24 right-8 z-[100] bg-success-green text-white px-6 py-4 rounded-2xl shadow-2xl animate-slide-in">
+    <i class="fas fa-check-circle mr-2"></i>{{ success_message }}
+</div>
+{% endif %}
+
+<div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 p-4 sm:p-6">
+        <div>
+            <h2 class="text-xl font-bold text-charcoal"></h2>
+            <p class="text-sm text-gray-500 mt-1">Liste des cours disponibles ({{ formations.count }})</p>
+        </div>
+        <button onclick="openModal('addModal')" class="w-full sm:w-auto bg-accent-gold hover:bg-yellow-600 text-gray-900 px-6 py-3 sm:px-8 sm:py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-3 shadow-xl shadow-accent-gold/30 transition-all hover:scale-105 hover:shadow-2xl border-2 border-accent-gold/50">
+            <i class="fas fa-plus text-xl"></i>
+            <span class="whitespace-nowrap">Nouvelle Formation</span>
+        </button>
+
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-gray-50/50 border-b border-gray-100">
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Nom</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Date Création</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Blocs</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Audios</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for formation in formations %}
+                <tr class="hover:bg-blue-50/30 transition-colors group">
+                    <td class="px-6 py-5 font-semibold text-charcoal">{{ formation.name }}</td>
+                    <td class="px-6 py-5 text-sm text-gray-600 hidden md:table-cell">{{ formation.created_at|date:"d/m/Y H:i" }}</td>
+                    <td class="px-6 py-5 hidden sm:table-cell">
+                        <span class="px-3 py-1 text-xs font-bold bg-purple-100 text-purple-700 rounded-full">{{ formation.blocs.count }} bloc{{ formation.blocs.count|pluralize:"s" }}</span>
+                    </td>
+                    <td class="px-6 py-5 hidden sm:table-cell">
+                        <span class="text-xs bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-semibold">
+                            {% for bloc in formation.blocs.all %}
+                                {{ bloc.audios.count }}{% if not forloop.last %}+{% endif %}
+                            {% empty %}0{% endfor %} audios
+                        </span>
+                    </td>
+                    <td class="px-6 py-5 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{% url 'traning:admin_formation_detail' formation.pk %}" class="bg-purple-500 hover:bg-purple-600 text-white px-3 sm:px-6 py-2 rounded-lg font-semibold transition-all text-xs sm:text-sm">
+                                <i class="fas fa-layer-group sm:mr-1"></i><span class="hidden sm:inline">Gérer</span>
+                            </a>
+                            <button onclick="openModal('editModal', {{ formation.pk }})" class="p-2 text-accent-blue hover:bg-accent-blue/10 rounded-lg hidden sm:block" title="Editer">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer {{ formation.name }} ?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="delete_pk" value="{{ formation.pk }}">
+                                <button type="submit" class="p-2 text-danger-red hover:bg-danger-red/10 rounded-lg" title="Supprimer">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                        <i class="fas fa-book text-5xl text-gray-300 mb-4 block"></i>
+                        Aucune formation. <button onclick="openModal('addModal')" class="font-semibold text-accent-blue hover:underline">Créer la première !</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Nouvelle Formation -->
+<div id="addModal" class="fixed inset-0 bg-black/50 z-[200] hidden items-center justify-center p-4">
+    <div class="glass-panel max-w-lg w-full max-h-[90vh] overflow-y-auto rounded-3xl p-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-bold text-charcoal">Nouvelle Formation</h3>
+            <button onclick="closeModal('addModal')" class="text-2xl text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="create" value="1">
+            {{ formation_form.non_field_errors }}
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-semibold text-charcoal mb-3">Nom de la Formation *</label>
+                    {{ formation_form.name }}
+                    {% if formation_form.name.errors %}
+                        <p class="text-danger-red text-xs mt-1">{{ formation_form.name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="border-t border-gray-100 pt-4">
+                    <label class="block text-sm font-semibold text-charcoal mb-3">Fichiers Audio (Vocaux)</label>
+                    <div id="audio-fields-container" class="space-y-3 mb-4">
+                        <!-- Les champs dynamiques seront ajoutés ici -->
+                    </div>
+                    <button type="button" onclick="addAudioField()" class="w-full py-3 px-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 hover:border-accent-blue hover:text-accent-blue transition-all flex items-center justify-center gap-2 text-sm font-medium">
+                        <i class="fas fa-plus-circle"></i> Ajouter un audio
+                    </button>
+                </div>
+            </div>
+            <div class="flex gap-3 pt-6">
+                <button type="button" onclick="closeModal('addModal')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-charcoal py-3 px-6 rounded-xl font-semibold transition-all">
+                    Annuler
+                </button>
+                <button type="submit" class="flex-1 bg-accent-blue hover:bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg transition-all">
+                    <i class="fas fa-save mr-2"></i>Créer Formation
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Style & Script (comme students) -->
+<style>
+@keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.animate-slide-in { animation: slide-in 0.4s ease-out; }
+</style>
+<script>
+function openModal(modalId) {
+    document.getElementById(modalId).classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+    document.body.style.overflow = '';
+}
+setTimeout(() => {
+    const toast = document.getElementById('success-toast');
+    if (toast) toast.style.animation = 'slide-in 0.4s ease-out, fade-out 0.4s ease-out 3s';
+}, 3000);
+
+function addAudioField() {
+    const container = document.getElementById('audio-fields-container');
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 items-center p-2 bg-gray-50 rounded-xl border border-gray-100 animate-slide-in';
+    div.innerHTML = `
+        <input type="file" name="audio_files" accept="audio/*" required class="flex-1 text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-accent-blue file:text-white hover:file:bg-blue-600 cursor-pointer">
+        <button type="button" onclick="this.parentElement.remove()" class="p-2 text-danger-red hover:bg-danger-red/10 rounded-lg transition-colors">
+            <i class="fas fa-trash-alt"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+        </script>
+    {% endblock %}

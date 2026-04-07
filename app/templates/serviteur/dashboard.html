@@ -1,0 +1,194 @@
+{% extends 'serviteur/base.html' %}
+
+{% block page_title %}Tableau de bord{% endblock %}
+{% block subtitle %}Suivi de vos formations avec statistiques{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+    transition: all 0.3s ease;
+}
+.stat-card:hover {
+    transform: translateY(-4px);
+}
+.chart-container {
+    position: relative;
+    height: 400px;
+}
+</style>
+{% endblock %}
+
+{% block serviteur_content %}
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+    <div class="stat-card bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-book text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-blue-100 text-sm font-medium">Formations totales</p>
+                <p class="text-3xl font-bold">{{ stats.total_available }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-emerald-100 text-sm font-medium">Complétées</p>
+                <p class="text-3xl font-bold">{{ stats.completed }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-play-circle text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-amber-100 text-sm font-medium">En cours</p>
+                <p class="text-3xl font-bold">{{ stats.in_progress }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-star text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-purple-100 text-sm font-medium">Score moyen</p>
+                <p class="text-3xl font-bold">{{ stats.score_moyen|floatformat:1 }}/20</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Pie Chart -->
+<div class="glass-panel p-4 sm:p-8 rounded-3xl mb-12">
+    <h2 class="text-3xl font-bold text-charcoal mb-8 flex items-center">
+        <i class="fas fa-chart-pie text-4xl text-blue-500 mr-4"></i>Progression globale
+    </h2>
+    <div class="chart-container bg-white/60 p-4 sm:p-8 rounded-3xl backdrop-blur-xl border border-white/50 mx-auto">
+        <canvas id="progressChart"></canvas>
+    </div>
+</div>
+
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-3xl font-bold text-charcoal">Mes Formations</h1>
+</div>
+
+{% if formations %}
+<div class="overflow-x-auto">
+    <table class="w-full">
+        <thead>
+            <tr class="bg-gray-50/50 border-b border-gray-100 text-xs sm:text-sm">
+                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider">Formation</th>
+                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Score</th>
+                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider">Statut</th>
+                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Date début/fin</th>
+                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for sf in formations %}
+            <tr class="hover:bg-blue-50/30 transition-colors">
+                <td class="px-6 py-5">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs sm:text-sm mr-2 sm:mr-4">
+                            {{ sf.formation.name|slice:":2"|upper }}
+                        </div>
+                        <h3 class="font-semibold text-charcoal">{{ sf.formation.name }}</h3>
+                    </div>
+                </td>
+                <td class="px-6 py-5 hidden sm:table-cell">
+                    <span class="px-4 py-2 rounded-full text-sm font-semibold 
+                        {% if sf.display_status == 'valid' %}bg-emerald-100 text-emerald-700
+                        {% elif sf.display_status == 'expired' %}bg-red-100 text-red-700
+                        {% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {% if sf.display_status == 'valid' %}{{ sf.score_20|floatformat:1 }}/20{% else %}-- / 20{% endif %}
+                    </span>
+                </td>
+                <td class="px-6 py-5 text-xs sm:text-sm">
+                    {% if sf.display_status == 'valid' %}
+                        <span class="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold border border-emerald-100 italic">
+                            <i class="fas fa-check-circle mr-1"></i>Validé
+                        </span>
+                    {% elif sf.display_status == 'expired' %}
+                        <span class="px-4 py-2 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100 italic">
+                            <i class="fas fa-times-circle mr-1"></i>Non validé (Expiré)
+                        </span>
+                    {% else %}
+                        <span class="px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-xs font-bold border border-blue-100 italic">
+                            <i class="fas fa-spinner fa-spin mr-1"></i>En cours
+                        </span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-5 text-xs text-gray-500 hidden md:table-cell">
+                    {{ sf.date_debut|date:"d/m H:i" }}<br>
+                    {{ sf.date_soumission|date:"d/m H:i"|default:"—" }}
+                </td>
+                <td class="px-6 py-5 text-right">
+                    {% if sf.display_status != 'valid' %}
+                    <a href="{% url 'traning:serviteur_formation_detail' sf.formation.pk %}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-xs transition-all">
+                        Reprendre
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-20">
+    <i class="fas fa-trophy text-6xl text-gray-300 mb-6"></i>
+    <h3 class="text-2xl font-bold text-charcoal mb-2">Aucune formation commencée</h3>
+    <p class="text-gray-500 mb-8">Commencez votre première formation dès maintenant !</p>
+    <a href="{% url 'traning:serviteur_formations' %}" class="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg shadow-lg transition-all inline-block">
+        <i class="fas fa-play mr-2"></i>Débuter une formation
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('progressChart');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Complétées', 'En cours', 'Pas commencé'],
+                datasets: [{
+                    data: [{{ stats.completed }}, {{ stats.in_progress }}, {{ stats.not_started }}],
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.8)', 
+                        'rgba(251, 191, 36, 0.8)',
+                        'rgba(156, 163, 175, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(34, 197, 94, 1)', 
+                        'rgba(251, 191, 36, 1)',
+                        'rgba(156, 163, 175, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            color: '#374151'
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends 'serviteur/base.html' %}
+
+{% block page_title %}Questionnaire - {{ formation.name }}{% endblock %}
+{% block subtitle %}Répondez au questionnaire pour obtenir votre score{% endblock %}
+
+{% block serviteur_content %}
+<div class="glass-panel p-4 sm:p-8 rounded-3xl max-w-4xl mx-auto">
+    {% if is_completed %}
+    <div class="text-center py-20">
+        <i class="fas fa-check-circle text-6xl sm:text-8xl text-emerald-500 mb-8"></i>
+        <h1 class="text-3xl sm:text-4xl font-bold text-charcoal mb-4">{{ formation.name }}</h1>
+        <p class="text-2xl text-gray-600 mb-8">Questionnaire déjà soumis !</p>
+        <div class="bg-gradient-to-r from-emerald-400 to-emerald-500 text-white px-12 py-6 rounded-3xl font-bold text-3xl shadow-2xl mb-8">
+            {{ score_20|floatformat:1 }}/20
+        </div>
+        <a href="{% url 'traning:serviteur_formations' %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-8 py-4 rounded-xl font-semibold flex items-center gap-2 mx-auto transition-all">
+            <i class="fas fa-list"></i> Voir toutes les formations
+        </a>
+    </div>
+    {% else %}
+    <div class="text-center mb-12">
+        <i class="fas fa-clipboard-list-check text-5xl sm:text-6xl text-emerald-500 mb-6"></i>
+        <h1 class="text-3xl sm:text-4xl font-bold text-charcoal mb-4">{{ formation.name }}</h1>
+        <p class="text-lg sm:text-xl text-gray-600">Questionnaire final - {{ formation.questionnaire_json|length }} questions</p>
+    </div>
+
+    <form method="post" class="space-y-8">
+        {% csrf_token %}
+        {% for question in formation.questionnaire_json %}
+        <div class="question-item p-4 sm:p-8 bg-white/60 backdrop-blur-xl rounded-3xl border border-white/50 shadow-xl hover:shadow-2xl transition-all">
+            <div class="flex items-start gap-3 sm:gap-4 mb-6">
+                <div class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                    {{ forloop.counter }}
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-2xl font-bold text-charcoal mb-4">{{ question.question }}</h3>
+                    {% if question.type == 'qcm' and question.options %}
+                        <div class="space-y-3">
+                            {% for option in question.options %}
+                            <label class="option flex items-center p-3 sm:p-4 bg-gray-50 hover:bg-gray-100 rounded-2xl cursor-pointer transition-all group">
+                                <input type="radio" name="question_{{ forloop.parentloop.counter0 }}" value="{{ forloop.counter0 }}" class="w-5 h-5 text-accent-blue bg-gray-100 border-gray-300 focus:ring-accent-blue mr-4" required>
+                                <span class="font-medium text-charcoal group-hover:text-accent-blue">{{ option }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    {% elif question.type == 'text' %}
+                        <div class="bg-white p-6 border-2 border-dashed border-gray-300 rounded-3xl">
+                            <textarea name="question_{{ forloop.counter0 }}" placeholder="Écrivez votre réponse ici..." class="w-full h-32 p-6 text-lg font-medium border-none outline-none resize-vertical focus:ring-4 focus:ring-accent-blue/20 rounded-2xl" required></textarea>
+                            <p class="text-xs text-gray-400 mt-2">Réponse libre - soyez précis !</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <div class="flex justify-center pt-12">
+            <button type="submit" class="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-8 py-4 sm:px-16 sm:py-6 rounded-3xl font-bold text-lg sm:text-xl shadow-2xl hover:shadow-3xl transition-all flex items-center justify-center gap-3">
+                <i class="fas fa-paper-plane"></i>
+                Envoyer mes réponses
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

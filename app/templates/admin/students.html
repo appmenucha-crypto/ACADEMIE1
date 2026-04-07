@@ -1,0 +1,218 @@
+{% extends 'admin/base.html' %}
+
+{% block page_title %}Gestion des Étudiants{% endblock %}
+{% block subtitle %}Visualisez et gérez les accès de vos apprenants.{% endblock %}
+
+{% block content %}
+<!-- Success Message -->
+{% if success_message %}
+<div id="success-toast" class="fixed top-24 right-8 z-[100] bg-success-green text-white px-6 py-4 rounded-2xl shadow-2xl animate-slide-in">
+    <i class="fas fa-check-circle mr-2"></i>{{ success_message }}
+</div>
+{% endif %}
+
+<div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
+    <div class="flex items-center justify-between mb-8 p-6">
+        <div>
+            <h2 class="text-xl font-bold text-charcoal">Gestion des comptes étudiants</h2>
+            <p class="text-sm text-gray-500 mt-1">Ajouter, modifier ou désactiver les étudiants enregistrés ({{ students.count }})</p>
+        </div>
+        <button onclick="openModal('addModal')" class="bg-accent-gold hover:bg-yellow-600 text-gray-900 px-8 py-4 rounded-2xl font-bold text-base flex items-center gap-3 shadow-xl shadow-accent-gold/30 transition-all hover:scale-105 hover:shadow-2xl border-2 border-accent-gold/50">
+            <i class="fas fa-plus text-xl"></i>
+            Nouvel Étudiant
+        </button>
+
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-gray-50/50 border-b border-gray-100">
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider w-16">Photo</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Nom / Username</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Email</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Téléphone</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for student in students %}
+                <tr class="hover:bg-blue-50/30 transition-colors group">
+                    <td class="px-6 py-5">
+                        <div class="w-12 h-12 rounded-full overflow-hidden ring-2 ring-gray-200">
+                            {% if student.profile_photo %}
+                                <img src="{{ student.profile_photo.url }}" alt="{{ student.username }}" class="w-full h-full object-cover">
+                            {% else %}
+                                <div class="w-full h-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-xs">
+                                    {{ student.first_name|slice:":1"|upper }}{{ student.last_name|slice:":1"|upper }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-6 py-5">
+                        <div>
+                            <span class="font-semibold text-charcoal block">{{ student.first_name }} {{ student.last_name }}</span>
+                            <span class="text-xs text-gray-500">@{{ student.username }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-5 text-sm text-gray-600">{{ student.email|default:"—" }}</td>
+                    <td class="px-6 py-5">
+                        <span class="text-sm font-mono bg-gray-50 px-3 py-1 rounded-full block">{{ student.phone_number|default:"—" }}</span>
+                    </td>
+                    <td class="px-6 py-5 text-right">
+                        <div class="flex items-center justify-end gap-1">
+                            <span class="px-3 py-1 text-xs font-bold {{ student.is_active|yesno:'text-success-green bg-success-green/10, text-danger-red bg-danger-red/10' }} rounded-full">
+                                {{ student.is_active|yesno:'Actif,Désactivé' }}
+                            </span>
+                            <button onclick="openModal('editModal', {{ student.pk }})" class="p-2.5 text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-all">
+                                <i class="fas fa-edit text-sm"></i>
+                            </button>
+                            <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer {{ student.username }} ?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="delete_pk" value="{{ student.pk }}">
+                                <button type="submit" class="p-2.5 text-danger-red hover:bg-danger-red/10 rounded-lg transition-all">
+                                    <i class="fas fa-trash text-sm"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 text-lg">
+                        <i class="fas fa-users-slash text-4xl text-gray-300 mb-4 block"></i>
+                        Aucun étudiant trouvé. <button onclick="openModal('addModal')" class="font-semibold text-accent-blue hover:underline">Créer le premier !</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Ajout/Édition -->
+<div id="addModal" class="fixed inset-0 bg-black/50 z-[200] hidden items-center justify-center p-4 animate-fade-in">
+    <div class="glass-panel max-w-md w-full max-h-[90vh] overflow-y-auto rounded-3xl p-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-bold text-charcoal">Nouvel Étudiant</h3>
+            <button onclick="closeModal('addModal')" class="text-2xl text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="create" value="1">
+            {{ student_form.non_field_errors }}
+            <div class="space-y-4 mb-6">
+                {% for field in student_form %}
+                    <div>
+                        <label class="block text-sm font-semibold text-charcoal mb-2">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <p class="text-danger-red text-xs mt-1">{{ field.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="closeModal('addModal')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-charcoal py-3 px-6 rounded-xl font-semibold transition-all">
+                    Annuler
+                </button>
+                <button type="submit" class="flex-1 bg-accent-blue hover:bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg transition-all">
+                    <i class="fas fa-save mr-2"></i>Créer Étudiant
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Edit (similaire) -->
+<div id="editModal" class="fixed inset-0 bg-black/50 z-[200] hidden items-center justify-center p-4 animate-fade-in">
+    <div class="glass-panel max-w-md w-full max-h-[90vh] overflow-y-auto rounded-3xl p-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-bold text-charcoal">Modifier Étudiant</h3>
+            <button onclick="closeModal('editModal')" class="text-2xl text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="post" enctype="multipart/form-data" id="editForm">
+            {% csrf_token %}
+            <input type="hidden" name="update" value="1" id="edit_pk_input">
+            {{ student_form.non_field_errors }}
+            <div class="space-y-4 mb-6">
+                {% for field in student_form %}
+                    <div>
+                        <label class="block text-sm font-semibold text-charcoal mb-2">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <p class="text-danger-red text-xs mt-1">{{ field.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="closeModal('editModal')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-charcoal py-3 px-6 rounded-xl font-semibold transition-all">
+                    Annuler
+                </button>
+                <button type="submit" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg transition-all">
+                    <i class="fas fa-save mr-2"></i>Mettre à jour
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+.animate-slide-in { animation: slide-in 0.4s ease-out; }
+#success-toast { animation: slide-in 0.4s ease-out; }
+</style>
+
+<script>
+function openModal(modalId, pk=null) {
+    document.getElementById(modalId).classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    if (pk && modalId === 'editModal') {
+        document.getElementById('edit_pk_input').value = pk;
+        // Load student data via AJAX if needed
+        loadStudentData(pk);
+    }
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function loadStudentData(pk) {
+    fetch(`/api/student/${pk}`)  // Future API
+        .then(r => r.json())
+        .then(data => {
+            // Populate form
+            document.querySelector('[name=username]').value = data.username;
+            // etc...
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Photo preview
+    const photoInput = document.querySelector('[name=profile_photo]');
+    if (photoInput) {
+        photoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.querySelector('.photo-preview');
+                    if (preview) preview.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

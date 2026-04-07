@@ -1,0 +1,110 @@
+{% extends 'serviteur/base.html' %}
+
+{% block page_title %}{{ formation.name }}{% endblock %}
+{% block subtitle %}Écoutez les vocaux par bloc (séquentiel){% endblock %}
+
+{% block serviteur_content %}
+<div class="glass-panel p-4 sm:p-8 rounded-3xl">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-charcoal mb-2">{{ formation.name }}</h1>
+            <div class="flex items-center gap-4 text-sm text-gray-500">
+                <span><i class="fas fa-clock mr-1"></i>Début: {{ sf.date_debut|date:"d/m/Y H:i"|default:"Non commencé" }}</span>
+                {% if score_20 > 0 %}
+                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-semibold text-xs"><i class="fas fa-star mr-1"></i>{{ score_20|floatformat:1 }}/20</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <a href="{% url 'traning:serviteur_dashboard' %}" class="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-charcoal px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all text-sm sm:text-base">
+                <i class="fas fa-arrow-left"></i>Dashboard
+            </a>
+            {% if score_20 > 0 %}
+            <div class="bg-gradient-to-r from-emerald-400 to-emerald-500 text-white px-8 py-3 rounded-xl font-semibold shadow-lg flex items-center gap-3">
+                <i class="fas fa-star"></i>
+                Score: {{ score_20|floatformat:1 }}/20
+                {% if score_20 >= 10 %}
+                <span class="px-3 py-1 bg-white/30 rounded-full text-xs font-bold">✅ Terminé & Validé</span>
+                {% else %}
+                <span class="px-3 py-1 bg-white/30 rounded-full text-xs font-bold">❌ Terminé</span>
+                {% endif %}
+            </div>
+            {% else %}
+            {% if formation.questionnaire_json %}
+<a href="{% url 'traning:serviteur_questionnaire' formation.pk %}" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 shadow-lg transition-all">
+                <i class="fas fa-clipboard-check"></i><span class="whitespace-nowrap">Passer au questionnaire</span>
+            </a>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="space-y-8">
+        {% for bloc in formation.blocs.all %}
+        <section class="bloc-section bg-white/50 backdrop-blur-xl p-4 sm:p-8 rounded-3xl border border-white/30">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-2xl font-bold text-charcoal flex items-center gap-3">
+                    <span class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-accent-blue to-blue-500 rounded-2xl flex items-center justify-center text-white font-bold text-lg sm:text-xl">{{ forloop.counter }}</span>
+                    {{ bloc.name }}
+                </h2>
+            </div>
+            <div class="audios-container grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for audio in bloc.audios.all %}
+                <div class="audio-card p-4 sm:p-6 bg-white/70 rounded-2xl border border-white/50 hover:border-accent-blue/80 transition-all group relative overflow-hidden" tabindex="0">
+                    <div class="audio-header flex items-center mb-4">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl flex items-center justify-center text-white font-bold text-base sm:text-lg mr-3 sm:mr-4 group-hover:rotate-180 transition-transform">
+                            {{ audio.order }}
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-charcoal mb-1">Vocal {{ audio.order }}</h4>
+                            <p class="text-sm text-gray-500">{{ audio.file.size|filesizeformat|default:"—" }}</p>
+                        </div>
+                    </div>
+                    <audio class="w-full h-12 rounded-xl" preload="metadata" controls>
+                        <source src="{{ audio.file.url }}" type="audio/mpeg">
+                        Votre navigateur ne supporte pas l'audio HTML5.
+                    </audio>
+                    <div class="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl text-xs text-gray-600 text-center font-medium">
+                        Cliquez sur l'audio pour écouter (séquentiel par bloc)
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-span-full text-center py-12 text-gray-400">
+                    <i class="fas fa-music text-5xl mb-4 opacity-50"></i>
+                    Aucun vocal dans ce bloc
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% empty %}
+        <div class="text-center py-20">
+            <i class="fas fa-music text-6xl text-gray-300 mb-6"></i>
+            <h3 class="text-2xl font-bold text-charcoal mb-2">Aucun bloc disponible</h3>
+            <p class="text-gray-500">Contactez l'administrateur pour ajouter du contenu.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const audioCards = document.querySelectorAll('.audio-card');
+    
+    audioCards.forEach((card, index) => {
+        const audio = card.querySelector('audio');
+        card.addEventListener('click', () => {
+            audio.play();
+            // Pause autres audios
+            audioCards.forEach((otherCard, otherIndex) => {
+                if (otherIndex !== index) {
+                    otherCard.querySelector('audio').pause();
+                }
+            });
+            card.classList.add('playing');
+            setTimeout(() => card.classList.remove('playing'), 2000);
+        });
+    });
+});
+</script>
+
+{% endblock %}

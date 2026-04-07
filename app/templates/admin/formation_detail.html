@@ -1,0 +1,152 @@
+{% extends 'admin/base.html' %}
+
+{% block page_title %}{{ formation.name }}{% endblock %}
+{% block subtitle %}Gestion des contenus audios vocaux.{% endblock %}
+
+{% block content %}
+{% if success_message %}
+<div id="success-toast" class="fixed top-24 right-8 z-[100] bg-success-green text-white px-6 py-4 rounded-2xl shadow-2xl animate-slide-in">
+    <i class="fas fa-check-circle mr-2"></i>{{ success_message }}
+</div>
+{% endif %}
+
+<div class="glass-panel p-4 sm:p-8 rounded-3xl mb-8">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <a href="{% url 'traning:admin_courses' %}" class="text-sm text-gray-500 hover:text-accent-blue">
+            ← Toutes Formations
+        </a>
+        <button onclick="document.getElementById('audio-upload-input').click()" class="w-full sm:w-auto bg-accent-blue text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-600 transition-all flex items-center justify-center">
+            <i class="fas fa-plus mr-2"></i>Ajouter des Audios
+        </button>
+    </div>
+
+    <!-- Liste Unique des Audios -->
+    <div class="space-y-3">
+        <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
+            <i class="fas fa-headphones text-accent-blue"></i>
+            Liste des audios de la formation
+        </h3>
+        
+        {% for bloc in formation.blocs.all %}
+            {% for audio in bloc.audios.all %}
+            <div class="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white border border-gray-100 rounded-2xl hover:shadow-md transition-all group">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-xl flex items-center justify-center text-charcoal font-bold group-hover:bg-accent-blue group-hover:text-white transition-colors text-sm sm:text-base">
+                    {{ forloop.counter }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-charcoal truncate">{{ audio.file.name|slice:'10:' }}</p>
+                    <p class="text-xs text-gray-500">{{ audio.file.size|filesizeformat }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <audio id="player-{{ audio.pk }}" src="{{ audio.file.url }}" class="hidden"></audio>
+                    <button onclick="toggleAudio({{ audio.pk }}, this)" class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-success-green/10 text-success-green rounded-full hover:bg-success-green hover:text-white transition-all">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button onclick="deleteAudio({{ audio.pk }})" class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-danger-red hover:bg-danger-red/10 rounded-full transition-all">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        {% empty %}
+        <div class="text-center py-20 text-gray-400">
+            <i class="fas fa-microphone-slash text-5xl mb-4 block opacity-20"></i>
+            <p>Aucun audio vocal dans cette formation.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Section Questionnaire de la Formation -->
+    {% if formation.questionnaire_json %}
+    <div class="glass-panel p-8 rounded-3xl mb-8">
+        <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
+            <i class="fas fa-question-circle text-accent-blue"></i>
+            Questionnaire de la Formation
+        </h3>
+        <div class="space-y-4">
+            {% for question_data in formation.questionnaire_json %}
+            <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm relative group">
+                <span class="absolute top-4 right-4 px-2 py-0.5 bg-gray-100 text-[10px] font-bold uppercase rounded text-gray-400">
+                    {{ question_data.type|default:"Question" }}
+                </span>
+                <form method="post" class="inline absolute top-3 right-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="delete_question" value="{{ forloop.counter0 }}">
+                    <button onclick="return confirm('Supprimer question {{ forloop.counter }} ?')" type="submit" class="w-7 h-7 bg-danger-red text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-xs shadow-lg hover:scale-110">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+                <p class="font-bold text-charcoal mb-2">{{ forloop.counter }}. {{ question_data.question }}</p>
+                {% if question_data.type == 'qcm' or question_data.options %}
+                    <div class="space-y-1">
+                        {% for option in question_data.options %}
+                            <div class="flex items-center gap-2 text-sm {% if forloop.counter0 == question_data.correct %}text-success-green font-bold{% else %}text-gray-500{% endif %}">
+                                <i class="fas {% if forloop.counter0 == question_data.correct %}fa-check-circle{% else %}fa-circle text-[8px]{% endif %}"></i> {{ option }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% elif question_data.type == 'text' or question_data.answer %}
+                    <div class="p-3 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-sm text-gray-400">
+                        <i class="fas fa-pen-nib mr-2"></i> Réponse attendue : <span class="text-charcoal font-bold italic">"{{ question_data.answer }}"</span>
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="glass-panel p-8 rounded-3xl mb-8 text-center text-gray-500">
+        <i class="fas fa-question-circle text-5xl mb-4 block opacity-20"></i>
+        <p>Aucun questionnaire associé à cette formation.</p>
+        <a href="{% url 'traning:admin_questionnaires' %}" class="mt-4 inline-block text-accent-blue hover:underline">Créer un questionnaire</a>
+    </div>
+    {% endif %}
+
+    <!-- Formulaire d'upload invisible déclenché par bouton -->
+    <form method="post" enctype="multipart/form-data" id="upload-form" class="hidden">
+        {% csrf_token %}
+        <input type="file" name="audio_files" id="audio-upload-input" multiple onchange="this.form.submit()" accept="audio/*">
+        <input type="hidden" name="add_audios" value="1">
+    </form>
+</div>
+
+<script>
+let currentPlaying = null;
+let currentBtn = null;
+
+function toggleAudio(id, btn) {
+    const player = document.getElementById('player-' + id);
+    const icon = btn.querySelector('i');
+    
+    if (currentPlaying && currentPlaying !== player) {
+        currentPlaying.pause();
+        currentBtn.querySelector('i').className = 'fas fa-play';
+    }
+    
+    if (player.paused) {
+        player.play();
+        icon.className = 'fas fa-pause';
+        currentPlaying = player;
+        currentBtn = btn;
+    } else {
+        player.pause();
+        icon.className = 'fas fa-play';
+    }
+    
+    player.onended = () => { icon.className = 'fas fa-play'; };
+}
+
+function deleteAudio(pk) {
+    if (confirm('Supprimer audio ?')) {
+        // Envoyer une requête de suppression
+    }
+}
+
+function deleteQuestion(id) {
+    if (confirm('Supprimer cette question ?')) {
+        // AJAX delete or reload
+        location.reload(); // Simple
+    }
+}
+</script>
+{% endblock %}

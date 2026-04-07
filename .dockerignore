@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+.git
+.gitignore
+README.md
+Dockerfile*
+.dockerignore
+media/
+db.sqlite3
+venv/
+env/
+node_modules/

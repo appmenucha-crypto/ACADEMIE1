@@ -1,0 +1,313 @@
+/* Style pour sidebar responsive */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    overflow-x: hidden;
+    background: linear-gradient(-45deg, #10B981, #EF4444, #FFFFFF, #10B981);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+    position: relative;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: 280px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+    backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 5px 0 30px rgba(0,0,0,0.3);
+    animation: slideInLeft 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.sidebar-brand {
+    padding: 1rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    text-decoration: none;
+    color: white !important;
+    background: rgba(255,255,255,0.1);
+    display: block;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-nav li {
+    margin: 0;
+}
+
+.sidebar-nav a {
+    color: rgba(255,255,255,0.9) !important;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+    display: block;
+    border-left: 3px solid transparent;
+    transition: all 0.3s;
+}
+
+.sidebar-nav a:hover,
+.sidebar-nav a.active {
+    background-color: rgba(255,193,7,0.2);
+    border-left-color: #ffc107;
+    color: #ffc107 !important;
+    box-shadow: inset 3px 0 0 #ffc107;
+}
+
+.user-section {
+    padding: 1rem;
+    background: rgba(40, 167, 69, 0.3);
+    border-top: 1px solid rgba(255,255,255,0.2);
+    margin-top: auto;
+}
+
+.user-info {
+    color: #dee2e6;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.create-btn {
+    background: #28a745 !important;
+    border: 1px solid #20c997 !important;
+    color: white !important;
+}
+
+.create-btn:hover {
+    background-color: #ffc107 !important;
+    border-color: #e0a800 !important;
+    color: #212529 !important;
+    transform: translateX(2px);
+}
+
+.logout-form {
+    padding: 0.5rem 1rem;
+}
+
+.logout-btn {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: #dee2e6;
+    padding: 0.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.logout-btn:hover {
+    background-color: #495057;
+    border-left: 3px solid #dc3545;
+    color: white;
+}
+
+.main-content {
+    margin-left: 250px;
+    flex: 1;
+    min-height: 100vh;
+}
+
+.container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Responsive Mobile */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+    }
+    
+    .sidebar.active {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding-top: 70px;
+    }
+    
+.menu-toggle {
+    display: block;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 1001;
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-radius: 0.375rem;
+    box-shadow: 0 2px 10px rgba(40,167,69,0.4);
+}
+
+.menu-toggle:hover {
+    background: linear-gradient(135deg, #20c997, #28a745);
+    transform: scale(1.05);
+}
+}
+
+/* Desktop > mobile */
+@media (min-width: 769px) {
+    .menu-toggle {
+        display: none;
+    }
+}
+
+/* Animations et effets dynamiques */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.animate-fadeIn { animation: fadeInUp 0.8s ease forwards; }
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-pulse { animation: pulse 2s infinite; }
+.animate-bounce { animation: bounce 2s infinite; }
+
+.glass-effect {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+}
+
+.btn-gradient {
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    border: none;
+    color: white;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255,107,107,0.4);
+}
+
+.btn-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255,107,107,0.6);
+    color: white;
+}
+
+.score-circle {
+    width: 100px;
+    height: 100px;
+}
+
+.score-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.score-bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.1);
+    stroke-width: 8;
+}
+
+.score-path {
+    fill: none;
+    stroke: url(#gradient);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+    transition: stroke-dashoffset 1s ease;
+}
+
+.score-text {
+    fill: white;
+    font-size: 18px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: middle;
+}
+
+.formations-grid .card {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: none;
+    border-radius: 24px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(20px);
+}
+
+.formations-grid .card:hover {
+    transform: translateY(-15px) scale(1.02);
+    box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+}
+
+.empty-card {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+    border-radius: 24px;
+}
+
+.main-content {
+    animation: fadeInUp 1s ease;
+}
+
+.sidebar-nav a i {
+    width: 20px;
+    opacity: 0.8;
+    transition: opacity 0.3s;
+}
+
+.sidebar-nav a:hover i {
+    opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container { padding: 1rem; }
+    .formation-card { margin-bottom: 1rem; }
+}

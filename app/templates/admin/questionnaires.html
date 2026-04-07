@@ -1,0 +1,208 @@
+{% extends 'admin/base.html' %}
+
+{% block page_title %}Gestion des Questionnaires{% endblock %}
+{% block subtitle %}Associez des questions de validation à vos formations.{% endblock %}
+
+{% block content %}
+{% if success_message %}
+<div id="success-toast" class="fixed top-24 right-8 z-[100] bg-success-green text-white px-6 py-4 rounded-2xl shadow-2xl animate-slide-in">
+    <i class="fas fa-check-circle mr-2"></i>{{ success_message }}
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <!-- Formulaire de Construction -->
+    <div class="glass-panel p-4 sm:p-8 rounded-2xl">
+        <h3 class="text-lg font-bold text-charcoal mb-6 flex items-center gap-2">
+            <i class="fas fa-tasks text-accent-blue"></i> Configurer le Questionnaire
+        </h3>
+        <form method="post" id="main-form" class="space-y-6" onsubmit="prepareSubmit(event)">
+            {% csrf_token %}
+            <input type="hidden" name="questions_json" id="questions_json_input">
+            
+            <div class="border-b border-gray-100 pb-6">
+                <label class="block text-sm font-bold text-charcoal mb-2">1. Sélectionner la Formation</label>
+                <select name="formation_id" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-accent-blue/20 outline-none cursor-pointer font-medium">
+                    <option value="" disabled selected>Choisir une formation...</option>
+                    {% for formation in formations %}
+                        <option value="{{ formation.id }}">{{ formation.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-charcoal mb-4">2. Questions du QCM</label>
+                <div id="questions-container" class="space-y-4 sm:max-h-[500px] overflow-y-auto pr-1 sm:pr-2">
+                    <!-- Injecté par JavaScript -->
+                </div>
+                
+                <button type="button" onclick="addQuestion()" class="mt-4 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 hover:border-accent-blue hover:text-accent-blue transition-all flex items-center justify-center gap-2 text-sm font-bold">
+                    <i class="fas fa-plus-circle"></i> Ajouter une question
+                </button>
+            </div>
+
+            <button type="submit" class="w-full bg-accent-gold hover:bg-yellow-600 text-gray-900 py-4 sm:py-5 px-6 sm:px-8 rounded-2xl font-bold text-base sm:text-lg transition-all shadow-2xl shadow-accent-gold/40 flex items-center justify-center gap-3 border border-accent-gold/30 hover:border-accent-gold hover:shadow-accent-gold/50">
+                <i class="fas fa-save text-xl"></i> Enregistrer le Questionnaire
+            </button>
+
+        </form>
+    </div>
+
+    <!-- Aperçu Dynamique -->
+    <div class="glass-panel p-4 sm:p-8 rounded-2xl bg-gray-50/50 hidden md:block">
+        <h3 class="text-lg font-bold text-charcoal mb-6">Aperçu du rendu final</h3>
+        <div id="preview-list" class="space-y-4">
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center text-gray-400 py-20">
+                Ajoutez des questions pour voir l'aperçu ici.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template pour une question (caché) -->
+<template id="question-template">
+    <div class="question-block bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 relative group animate-slide-in">
+        <button type="button" onclick="removeQuestion(this); updatePreview();" class="absolute -top-2 -right-2 w-8 h-8 bg-danger-red text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs shadow-lg hover:scale-110">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <div class="flex gap-4 mb-2">
+            <select onchange="toggleQuestionType(this)" class="q-type text-xs font-bold uppercase tracking-wider text-accent-blue bg-blue-50 px-3 py-1 rounded-lg outline-none border-none">
+                <option value="qcm">Type: QCM</option>
+                <option value="text">Type: Réponse Libre</option>
+            </select>
+        </div>
+
+        <input type="text" placeholder="Votre question..." class="q-text w-full font-bold text-charcoal border-b border-gray-100 py-2 focus:border-accent-blue outline-none" oninput="updatePreview()">
+        
+        <div class="grid grid-cols-2 gap-2 mt-2">
+        <!-- Champs pour QCM -->
+        <div class="qcm-fields grid grid-cols-2 gap-2 mt-2">
+            <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                <input type="radio" name="correct_INDEX" class="q-correct w-4 h-4 accent-success-green" checked onchange="updatePreview()">
+                <input type="text" placeholder="Option A" class="q-opt w-full bg-transparent text-sm outline-none" oninput="updatePreview()">
+            </div>
+            <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                <input type="radio" name="correct_INDEX" class="q-correct w-4 h-4 accent-success-green" onchange="updatePreview()">
+                <input type="text" placeholder="Option B" class="q-opt w-full bg-transparent text-sm outline-none" oninput="updatePreview()">
+            </div>
+        </div>
+
+        <!-- Champ pour Réponse Libre -->
+        <div class="text-fields hidden mt-2">
+            <input type="text" placeholder="Réponse attendue (pour validation)..." class="q-answer w-full bg-gray-50 p-3 rounded-xl border border-gray-100 text-sm outline-none focus:border-accent-blue" oninput="updatePreview()">
+        </div>
+    </div>
+</template>
+
+<script>
+let questionCount = 0;
+
+function addQuestion() {
+    const container = document.getElementById('questions-container');
+    const template = document.getElementById('question-template').innerHTML;
+    const html = template.replace(/INDEX/g, ++questionCount);
+    container.insertAdjacentHTML('beforeend', html);
+    updatePreview();
+}
+
+function removeQuestion(button) {
+    if (confirm('Supprimer cette question ?')) {
+        button.parentElement.remove();
+        updatePreview();
+    }
+}
+
+function toggleQuestionType(select) {
+    const block = select.closest('.question-block');
+    if (select.value === 'text') {
+        block.querySelector('.qcm-fields').classList.add('hidden');
+        block.querySelector('.text-fields').classList.remove('hidden');
+    } else {
+        block.querySelector('.qcm-fields').classList.remove('hidden');
+        block.querySelector('.text-fields').classList.add('hidden');
+    }
+    updatePreview();
+}
+
+function updatePreview() {
+    const blocks = document.querySelectorAll('.question-block');
+    const previewList = document.getElementById('preview-list');
+    
+    if (blocks.length === 0) {
+        previewList.innerHTML = '<div class="bg-white p-6 rounded-xl border border-gray-200 text-center text-gray-400 py-20">Ajoutez des questions...</div>';
+        return;
+    }
+
+    previewList.innerHTML = '';
+    blocks.forEach((block, idx) => {
+        const text = block.querySelector('.q-text').value || '(Question vide)';
+        const type = block.querySelector('.q-type').value;
+        
+        let contentHtml = '';
+        if (type === 'qcm') {
+            const opts = Array.from(block.querySelectorAll('.q-opt')).map(i => i.value || '...');
+            const correctIdx = Array.from(block.querySelectorAll('.q-correct')).findIndex(i => i.checked);
+            contentHtml = opts.map((o, i) => `
+                <div class="flex items-center gap-2 text-sm ${i === correctIdx ? 'text-success-green font-bold' : 'text-gray-500'}">
+                    <i class="fas ${i === correctIdx ? 'fa-check-circle' : 'fa-circle text-[8px]'}"></i> ${o}
+                </div>
+            `).join('');
+        } else {
+            const answer = block.querySelector('.q-answer').value || '...';
+            contentHtml = `
+                <div class="p-3 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-sm text-gray-400">
+                    <i class="fas fa-pen-nib mr-2"></i> L'étudiant devra écrire : <span class="text-charcoal font-bold italic">"${answer}"</span>
+                </div>
+            `;
+        }
+
+        const previewItem = `
+            <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm animate-fade-in">
+                <p class="font-bold text-charcoal mb-4">${idx + 1}. ${text}</p>
+                <div class="space-y-2">
+                    ${contentHtml}
+                </div>
+            </div>
+        `;
+        previewList.insertAdjacentHTML('beforeend', previewItem);
+    });
+}
+
+function prepareSubmit(e) {
+    const blocks = document.querySelectorAll('.question-block');
+    const data = [];
+    
+    blocks.forEach(block => {
+        const type = block.querySelector('.q-type').value;
+        const question = block.querySelector('.q-text').value;
+        
+        if (type === 'qcm') {
+            const options = Array.from(block.querySelectorAll('.q-opt')).map(i => i.value);
+            const correct = Array.from(block.querySelectorAll('.q-correct')).findIndex(i => i.checked);
+            data.push({ type, question, options, correct });
+        } else {
+            const answer = block.querySelector('.q-answer').value;
+            data.push({ type, question, answer });
+        }
+    });
+    
+    document.getElementById('questions_json_input').value = JSON.stringify(data);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    addQuestion(); 
+    setTimeout(() => {
+        const toast = document.getElementById('success-toast');
+        if (toast) toast.style.display = 'none';
+    }, 4000);
+});
+</script>
+
+<style>
+@keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.animate-slide-in { animation: slide-in 0.4s ease-out; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.animate-fade-in { animation: fade-in 0.5s ease-out; }
+</style>
+{% endblock %}
