@@ -148,3 +148,10 @@ LOGIN_URL = 'traning:login'
 LOGIN_REDIRECT_URL = 'traning:admin_dashboard'
 LOGIN_REDIRECT_URL = 'traning:serviteur_dashboard'
 LOGOUT_REDIRECT_URL = 'traning:login'
+
+
+# settings.py
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://academie-vh.appliriki.com",
+]
