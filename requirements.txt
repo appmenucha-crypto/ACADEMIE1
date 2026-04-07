@@ -6,6 +6,8 @@ cssselect2==0.9.0
 Django==5.1.15
 django-widget-tweaks==1.5.1
 fonttools==4.62.1
+gunicorn==23.0.0
+whitenoise==6.12.0
 pillow==12.2.0
 psycopg2-binary==2.9.11
 pycparser==3.0
@@ -19,3 +21,4 @@ weasyprint==68.1
 webencodings==0.5.1
 zopfli==0.4.1
 gunicorn
+whitenoise
