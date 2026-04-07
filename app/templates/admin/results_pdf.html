@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Résultats Formations</title>
+    <style>
+        @page { size: A4; margin: 1.5cm; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; color: #333; }
+        h1 { text-align: center; color: #10B981; font-size: 20pt; border-bottom: 3px solid #10B981; padding-bottom: 8pt; margin-bottom: 4pt; }
+        .date { text-align: center; font-size: 9pt; color: #666; margin-bottom: 16pt; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10pt; }
+        th { background-color: #10B981; color: white; padding: 8pt 6pt; text-align: left; font-size: 10pt; }
+        td { padding: 7pt 6pt; border-bottom: 1pt solid #eee; font-size: 10pt; }
+        tr:nth-child(even) td { background-color: #f9f9f9; }
+        .valide { color: #059669; font-weight: bold; }
+        .echec { color: #dc2626; font-weight: bold; }
+        .en-cours { color: #d97706; font-weight: bold; }
+        .footer { margin-top: 20pt; text-align: center; font-size: 8pt; color: #999; border-top: 1pt solid #eee; padding-top: 8pt; }
+    </style>
+</head>
+<body>
+    <h1>Rapport des Résultats Formations</h1>
+    <p class="date">Généré le {{ generated_at|date:"d/m/Y à H:i" }}</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Étudiant</th>
+                <th>Formation</th>
+                <th>Score /20</th>
+                <th>Date début</th>
+                <th>Date soumission</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for res in results %}
+            <tr>
+                <td>{{ res.serviteur.username }}<br><small>{{ res.serviteur.first_name }} {{ res.serviteur.last_name }}</small></td>
+                <td>{{ res.formation.name }}</td>
+                <td><strong>{{ res.score_20 }}/20</strong></td>
+                <td>{{ res.date_debut|date:"d/m/Y H:i"|default:"—" }}</td>
+                <td>{{ res.date_soumission|date:"d/m/Y H:i"|default:"—" }}</td>
+                <td class="{% if res.statut == 1 %}valide{% elif res.statut == 0 %}echec{% else %}en-cours{% endif %}">
+                    {% if res.statut == 1 %}Validé{% elif res.statut == 0 %}Échec{% else %}En cours{% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="text-align:center; color:#999;">Aucun résultat</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="footer">Formation VH — Système de suivi des formations</div>
+</body>
+</html>

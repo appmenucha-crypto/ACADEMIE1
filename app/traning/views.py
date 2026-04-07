@@ -232,20 +232,18 @@ def admin_results(request):
 
     # Logique d'exportation CSV
     if request.GET.get('export') == 'pdf':
+        from weasyprint import HTML, CSS
+        from django.template.loader import render_to_string
         all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
-        response = HttpResponse(content_type='text/csv; charset=utf-8')
-        response['Content-Disposition'] = 'attachment; filename="resultats_formations.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Étudiant', 'Formation', 'Score /20', 'Date début', 'Date soumission', 'Statut'])
         for res in all_results:
-            writer.writerow([
-                res.serviteur.username,
-                res.formation.name,
-                round(res.score * 0.2, 1),
-                res.date_debut.strftime('%d/%m/%Y %H:%M') if res.date_debut else '—',
-                res.date_soumission.strftime('%d/%m/%Y %H:%M') if res.date_soumission else '—',
-                res.get_statut_display(),
-            ])
+            res.score_20 = round(res.score * 0.2, 1)
+        html_string = render_to_string('admin/results_pdf.html', {
+            'results': all_results,
+            'generated_at': timezone.now(),
+        })
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="resultats_formations.pdf"'
+        HTML(string=html_string).write_pdf(response)
         return response
 
     total_users = CustomUser.objects.filter(role='serviteur').count()
