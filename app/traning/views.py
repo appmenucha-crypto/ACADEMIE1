@@ -212,6 +212,14 @@ def admin_formation_detail(request, pk):
             
             success_message = f"{len(audio_files)} audio(s) ajouté(s) avec succès !"
             formation = Formation.objects.prefetch_related('blocs__audios').get(pk=pk)
+        elif 'delete_audio' in request.POST:
+            pk_audio = request.POST.get('delete_audio')
+            try:
+                AudioFile.objects.get(pk=pk_audio).delete()
+                success_message = "Audio supprimé avec succès."
+                formation = Formation.objects.prefetch_related('blocs__audios').get(pk=pk)
+            except AudioFile.DoesNotExist:
+                pass
         elif 'delete_question' in request.POST:
             q_index = int(request.POST['delete_question'])
             if 0 <= q_index < len(formation.questionnaire_json):

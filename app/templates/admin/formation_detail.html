@@ -117,36 +117,44 @@ let currentBtn = null;
 function toggleAudio(id, btn) {
     const player = document.getElementById('player-' + id);
     const icon = btn.querySelector('i');
-    
+
     if (currentPlaying && currentPlaying !== player) {
         currentPlaying.pause();
-        currentBtn.querySelector('i').className = 'fas fa-play';
+        currentPlaying.currentTime = 0;
+        if (currentBtn) currentBtn.querySelector('i').className = 'fas fa-play';
     }
-    
+
     if (player.paused) {
-        player.play();
-        icon.className = 'fas fa-pause';
-        currentPlaying = player;
-        currentBtn = btn;
+        player.play().then(() => {
+            icon.className = 'fas fa-pause';
+            currentPlaying = player;
+            currentBtn = btn;
+        }).catch(err => {
+            console.error('Erreur lecture audio:', err);
+            alert('Impossible de lire cet audio. Vérifiez que le fichier existe.');
+        });
     } else {
         player.pause();
         icon.className = 'fas fa-play';
     }
-    
-    player.onended = () => { icon.className = 'fas fa-play'; };
+
+    player.onended = () => {
+        icon.className = 'fas fa-play';
+        currentPlaying = null;
+        currentBtn = null;
+    };
 }
 
 function deleteAudio(pk) {
-    if (confirm('Supprimer audio ?')) {
-        // Envoyer une requête de suppression
-    }
-}
-
-function deleteQuestion(id) {
-    if (confirm('Supprimer cette question ?')) {
-        // AJAX delete or reload
-        location.reload(); // Simple
-    }
+    if (!confirm('Supprimer cet audio ?')) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.innerHTML = `
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <input type="hidden" name="delete_audio" value="${pk}">
+    `;
+    document.body.appendChild(form);
+    form.submit();
 }
 </script>
 {% endblock %}
