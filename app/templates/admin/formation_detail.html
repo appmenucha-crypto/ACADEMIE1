@@ -35,7 +35,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="font-semibold text-charcoal truncate">{{ audio.file.name|slice:'10:' }}</p>
-                    <p class="text-xs text-gray-500">{{ audio.file.size|filesizeformat }}</p>
+                    <p class="text-xs text-gray-500">{{ audio.file.name|slice:'7:' }}</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <audio id="player-{{ audio.pk }}" src="{{ audio.file.url }}" class="hidden"></audio>
