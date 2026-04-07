@@ -232,130 +232,20 @@ def admin_results(request):
 
     # Logique d'exportation CSV
     if request.GET.get('export') == 'pdf':
-        from weasyprint import HTML, CSS
-        all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_fin')[:100]
+        all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="resultats_formations.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Étudiant', 'Formation', 'Score /20', 'Date début', 'Date soumission', 'Statut'])
         for res in all_results:
-            res.score_20 = round(res.score * 0.2, 1)
-        
-        html_template = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Résultats Formations - Formation VH</title>
-            <style>
-                @page {
-                    size: A4;
-                    margin: 2cm;
-                }
-                body { 
-                    font-family: 'Helvetica', Arial, sans-serif;
-                    font-size: 12pt;
-                    line-height: 1.4;
-                    color: #333;
-                }
-                h1 { 
-                    text-align: center;
-                    color: #10B981;
-                    font-size: 24pt;
-                    margin-bottom: 10pt;
-                    border-bottom: 3px solid #10B981;
-                    padding-bottom: 10pt;
-                }
-                .header {
-                    text-align: center;
-                    margin-bottom: 20pt;
-                }
-                .date {
-                    font-size: 10pt;
-                    color: #666;
-                    margin-bottom: 20pt;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 20pt;
-                }
-                th {
-                    background-color: #10B981;
-                    color: white;
-                    font-weight: bold;
-                    padding: 12pt 8pt;
-                    text-align: left;
-                    border-bottom: 3px solid #059669;
-                }
-                td {
-                    padding: 10pt 8pt;
-                    border-bottom: 1pt solid #eee;
-                }
-                tr:nth-child(even) {
-                    background-color: #f9f9f9;
-                }
-                tr:hover {
-                    background-color: #f0f9f4;
-                }
-                .score {
-                    font-weight: bold;
-                    font-family: monospace;
-                    font-size: 11pt;
-                }
-                .valide {
-                    color: #059669;
-                    font-weight: bold;
-                }
-                .echec {
-                    color: #dc2626;
-                    font-weight: bold;
-                }
-                .footer {
-                    margin-top: 30pt;
-                    text-align: center;
-                    font-size: 9pt;
-                    color: #999;
-                    border-top: 1pt solid #eee;
-                    padding-top: 10pt;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>📊 Rapport des Résultats Formations</h1>
-                <p class="date">Généré le {{ timezone.now|date:"d/m/Y à H:i" }}</p>
-            </div>
-            <table>
-                <tr>
-                    <th>Étudiant</th>
-                    <th>Formation</th>
-                    <th>Score</th>
-                    <th>Date Fin</th>
-                    <th>Statut</th>
-                </tr>
-        """
-        
-        for res in all_results:
-            statut = "✅ Validé" if res.score >= 50 else "❌ Échec"
-            html_template += f"""
-                <tr>
-                    <td>{res.serviteur.username}</td>
-                    <td>{res.formation.name}</td>
-                    <td class="score">{res.score_20}/20</td>
-                    <td>{res.date_fin.strftime('%d/%m/%Y %H:%M') if res.date_fin else '—'}</td>
-                    <td class="{ 'valide' if res.score >= 50 else 'echec' }">{statut}</td>
-                </tr>
-            """
-        
-        html_template += """
-            </table>
-            <div class="footer">
-                <p>Rapport généré par Formation VH - Système de suivi des formations</p>
-            </div>
-        </body>
-        </html>
-        """
-        
-        html = HTML(string=html_template)
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="resultats_formations.pdf"'
-        html.write_pdf(response, stylesheets=[CSS(string='@page { size: A4; margin: 1.5cm; }')])
+            writer.writerow([
+                res.serviteur.username,
+                res.formation.name,
+                round(res.score * 0.2, 1),
+                res.date_debut.strftime('%d/%m/%Y %H:%M') if res.date_debut else '—',
+                res.date_soumission.strftime('%d/%m/%Y %H:%M') if res.date_soumission else '—',
+                res.get_statut_display(),
+            ])
         return response
 
     total_users = CustomUser.objects.filter(role='serviteur').count()
