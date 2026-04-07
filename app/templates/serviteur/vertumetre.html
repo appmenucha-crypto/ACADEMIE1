@@ -84,9 +84,10 @@
     }
 </style>
 {% endblock %}
+
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-disable submitted fields
     {% if is_submitted %}
         document.querySelectorAll('input, textarea, select').forEach(el => {
             el.disabled = true;
