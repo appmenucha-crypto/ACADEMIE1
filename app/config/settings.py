@@ -25,7 +25,11 @@ SECRET_KEY = 'django-insecure-q&pfz^17rf@5@86r+92s7_shq#i$*g(7u(k6h+*bai3f@m_1di
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '127.0.0.1',          # pour le local
+    'localhost',          # pour le local
+    'academie-vh.appliriki.com',  # ton domaine
+]
 
 
 # Application definition
