@@ -12,36 +12,80 @@
 {% endif %}
 
 <div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
-    <div class="flex items-center justify-between mb-8 p-6">
-        <div>
-            <h2 class="text-xl font-bold text-charcoal"></h2>
-            <p class="text-sm text-gray-500 mt-1">Ajouter, modifier ou désactiver les serviteurs enregistrés ({{ serviteurs.count }})</p>
-        </div>
-        <button onclick="openModal('addModal')" class="bg-accent-gold hover:bg-yellow-600 text-gray-900 px-8 py-4 rounded-2xl font-bold text-base flex items-center gap-3 shadow-xl shadow-accent-gold/30 transition-all hover:scale-105 hover:shadow-2xl border-2 border-accent-gold/50">
-            <i class="fas fa-plus text-xl"></i>
-            Nouveau Serviteur
+    <div class="flex items-center justify-between p-4 sm:p-6">
+        <p class="text-sm text-gray-500">{{ serviteurs.count }} serviteur{{ serviteurs.count|pluralize }}</p>
+        <button onclick="openModal('addModal')" class="bg-accent-gold hover:bg-yellow-600 text-gray-900 px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition-all hover:scale-105">
+            <i class="fas fa-plus"></i>
+            <span class="hidden sm:inline">Nouveau Serviteur</span>
+            <span class="sm:hidden">Ajouter</span>
         </button>
-
     </div>
-    
-    <div class="overflow-x-auto">
+
+    <!-- Mobile: cards -->
+    <div class="block sm:hidden px-4 pb-4 space-y-3">
+        {% for serviteur in serviteurs %}
+        <div class="bg-white/60 rounded-xl p-4 border border-gray-100">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-full overflow-hidden ring-2 ring-gray-200 flex-shrink-0">
+                    {% if serviteur.profile_photo %}
+                        <img src="{{ serviteur.profile_photo.url }}" alt="" class="w-full h-full object-cover">
+                    {% else %}
+                        <div class="w-full h-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-xs">
+                            {{ serviteur.first_name|slice:":1"|upper }}{{ serviteur.last_name|slice:":1"|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-charcoal text-sm truncate">{{ serviteur.first_name }} {{ serviteur.last_name }}</p>
+                    <p class="text-xs text-gray-500">@{{ serviteur.username }}</p>
+                </div>
+                <span class="text-xs font-bold px-2 py-1 rounded-full {{ serviteur.is_active|yesno:'text-success-green bg-success-green/10,text-danger-red bg-danger-red/10' }}">
+                    {{ serviteur.is_active|yesno:'Actif,Désactivé' }}
+                </span>
+            </div>
+            <div class="flex items-center justify-between">
+                <div class="text-xs text-gray-500 truncate flex-1 mr-2">{{ serviteur.email|default:"—" }}</div>
+                <div class="flex gap-1">
+                    <button onclick="openModal('editModal', {{ serviteur.pk }}); setTimeout(() => loadServiteurData({{ serviteur.pk }}), 100);" class="p-2 text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-all">
+                        <i class="fas fa-edit text-sm"></i>
+                    </button>
+                    <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer {{ serviteur.username }} ?')">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete_pk" value="{{ serviteur.pk }}">
+                        <button type="submit" class="p-2 text-danger-red hover:bg-danger-red/10 rounded-lg transition-all">
+                            <i class="fas fa-trash text-sm"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-12 text-gray-500">
+            <i class="fas fa-users-slash text-4xl text-gray-300 mb-4 block"></i>
+            Aucun serviteur.
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Desktop: table -->
+    <div class="hidden sm:block overflow-x-auto">
         <table class="w-full text-left">
             <thead>
                 <tr class="bg-gray-50/50 border-b border-gray-100">
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider w-16">Photo</th>
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Nom / Username</th>
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Email</th>
-                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Téléphone</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Téléphone</th>
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 {% for serviteur in serviteurs %}
                 <tr class="hover:bg-blue-50/30 transition-colors group">
-                    <td class="px-6 py-5">
-                        <div class="w-12 h-12 rounded-full overflow-hidden ring-2 ring-gray-200">
+                    <td class="px-6 py-4">
+                        <div class="w-10 h-10 rounded-full overflow-hidden ring-2 ring-gray-200">
                             {% if serviteur.profile_photo %}
-                                <img src="{{ serviteur.profile_photo.url }}" alt="{{ serviteur.username }}" class="w-full h-full object-cover">
+                                <img src="{{ serviteur.profile_photo.url }}" alt="" class="w-full h-full object-cover">
                             {% else %}
                                 <div class="w-full h-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-xs">
                                     {{ serviteur.first_name|slice:":1"|upper }}{{ serviteur.last_name|slice:":1"|upper }}
@@ -49,28 +93,26 @@
                             {% endif %}
                         </div>
                     </td>
-                    <td class="px-6 py-5">
-                        <div>
-                            <span class="font-semibold text-charcoal block">{{ serviteur.first_name }} {{ serviteur.last_name }}</span>
-                            <span class="text-xs text-gray-500">@{{ serviteur.username }}</span>
-                        </div>
+                    <td class="px-6 py-4">
+                        <span class="font-semibold text-charcoal block text-sm">{{ serviteur.first_name }} {{ serviteur.last_name }}</span>
+                        <span class="text-xs text-gray-500">@{{ serviteur.username }}</span>
                     </td>
-                    <td class="px-6 py-5 text-sm text-gray-600">{{ serviteur.email|default:"—" }}</td>
-                    <td class="px-6 py-5">
-                        <span class="text-sm font-mono bg-gray-50 px-3 py-1 rounded-full block">{{ serviteur.phone_number|default:"—" }}</span>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ serviteur.email|default:"—" }}</td>
+                    <td class="px-6 py-4 hidden md:table-cell">
+                        <span class="text-sm font-mono bg-gray-50 px-3 py-1 rounded-full">{{ serviteur.phone_number|default:"—" }}</span>
                     </td>
-                    <td class="px-6 py-5 text-right">
+                    <td class="px-6 py-4 text-right">
                         <div class="flex items-center justify-end gap-1">
-                            <span class="px-3 py-1 text-xs font-bold {{ serviteur.is_active|yesno:'text-success-green bg-success-green/10, text-danger-red bg-danger-red/10' }} rounded-full">
+                            <span class="px-3 py-1 text-xs font-bold {{ serviteur.is_active|yesno:'text-success-green bg-success-green/10,text-danger-red bg-danger-red/10' }} rounded-full">
                                 {{ serviteur.is_active|yesno:'Actif,Désactivé' }}
                             </span>
-                            <button onclick="openModal('editModal', {{ serviteur.pk }}); setTimeout(() => loadServiteurData({{ serviteur.pk }}), 100);" class="p-2.5 text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-all">
+                            <button onclick="openModal('editModal', {{ serviteur.pk }}); setTimeout(() => loadServiteurData({{ serviteur.pk }}), 100);" class="p-2 text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-all">
                                 <i class="fas fa-edit text-sm"></i>
                             </button>
                             <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer {{ serviteur.username }} ?')">
                                 {% csrf_token %}
                                 <input type="hidden" name="delete_pk" value="{{ serviteur.pk }}">
-                                <button type="submit" class="p-2.5 text-danger-red hover:bg-danger-red/10 rounded-lg transition-all">
+                                <button type="submit" class="p-2 text-danger-red hover:bg-danger-red/10 rounded-lg transition-all">
                                     <i class="fas fa-trash text-sm"></i>
                                 </button>
                             </form>
@@ -79,9 +121,9 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 text-lg">
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
                         <i class="fas fa-users-slash text-4xl text-gray-300 mb-4 block"></i>
-                        Aucun serviteur trouvé. <button onclick="openModal('addModal')" class="font-semibold text-accent-blue hover:underline">Créer le premier !</button>
+                        Aucun serviteur. <button onclick="openModal('addModal')" class="font-semibold text-accent-blue hover:underline">Créer le premier !</button>
                     </td>
                 </tr>
                 {% endfor %}
