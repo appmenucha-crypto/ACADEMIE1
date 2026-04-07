@@ -30,14 +30,27 @@ class ServiteurFormationForm(forms.ModelForm):
 
 
 class ServiteurForm(forms.ModelForm):
-    password = forms.CharField(widget=forms.PasswordInput(attrs={'placeholder': 'Mot de passe temporaire (sera hashé)'}), required=False, help_text="Laissez vide pour générer auto ou définir temporaire")
-    
+    password = forms.CharField(
+        label="Mot de passe",
+        widget=forms.PasswordInput(attrs={'placeholder': 'Mot de passe temporaire (sera hashé)'}),
+        required=False,
+        help_text="Laissez vide pour générer automatiquement"
+    )
+
     class Meta:
         model = CustomUser
         fields = ['username', 'first_name', 'last_name', 'email', 'phone_number', 'profile_photo', 'password']
+        labels = {
+            'username': "Nom d'utilisateur",
+            'first_name': "Prénom",
+            'last_name': "Nom de famille",
+            'email': "Adresse e-mail",
+            'phone_number': "Numéro de téléphone",
+            'profile_photo': "Photo de profil",
+        }
         widgets = {
             'phone_number': forms.TextInput(attrs={'placeholder': '+33 6 12 34 56 78'}),
-'email': forms.EmailInput(attrs={'placeholder': 'serviteur@example.com'}),
+            'email': forms.EmailInput(attrs={'placeholder': 'serviteur@example.com'}),
         }
     
     def save(self, commit=True):
