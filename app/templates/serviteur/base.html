@@ -41,24 +41,25 @@
     <!-- Sidebar -->
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
 
-    <aside id="sidebar" class="fixed left-0 top-0 h-screen w-72 bg-gradient-to-b from-emerald-50/95 to-emerald-100/80 backdrop-blur-xl text-emerald-800 flex flex-col z-50 shadow-xl border-r-0 rounded-r-3xl transition-transform duration-300 -translate-x-full md:translate-x-0">
-        <div class="p-8 border-b border-white/20 flex flex-col items-center gap-4 pt-12">
-            <img src="/media/Logo.png" alt="Logo Formation VH" class="w-44 h-44 object-contain mb-6 drop-shadow-2xl" style="background: none;">
-            <div class="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/50 shadow-2xl">
-                {% if user.profile_photo %}
-                    <img src="{{ user.profile_photo.url }}" alt="{{ user.get_full_name }}" class="w-full h-full object-cover">
-                {% else %}
-                    <div class="w-full h-full bg-gradient-to-br from-white/30 to-white/10 flex items-center justify-center font-bold text-2xl text-white">
-                        {{ user.username|slice:":2"|upper }}
-                    </div>
-                {% endif %}
-            </div>
-            <div class="text-center">
-                <h2 class="font-bold text-xl tracking-tight text-emerald-700">Espace Serviteur</h2>
-                <p class="text-sm font-medium text-emerald-600">{{ user.get_full_name|default:user.username }}</p>
+    <aside id="sidebar" class="fixed left-0 top-0 h-screen w-72 bg-gradient-to-b from-emerald-50/95 to-emerald-100/80 backdrop-blur-xl text-emerald-800 flex flex-col z-50 shadow-xl border-r-0 rounded-r-3xl transition-transform duration-300 -translate-x-full md:translate-x-0 overflow-y-auto">
+        <div class="px-6 py-5 border-b border-emerald-200/50 flex items-center gap-3">
+            <img src="/media/Logo.png" alt="Logo" class="w-12 h-12 object-contain flex-shrink-0">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+                <div class="w-10 h-10 rounded-full overflow-hidden ring-2 ring-emerald-300 flex-shrink-0">
+                    {% if user.profile_photo %}
+                        <img src="{{ user.profile_photo.url }}" alt="" class="w-full h-full object-cover">
+                    {% else %}
+                        <div class="w-full h-full bg-emerald-500 flex items-center justify-center font-bold text-white text-sm">
+                            {{ user.username|slice:":2"|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="min-w-0">
+                    <p class="font-bold text-sm text-emerald-700 truncate">{{ user.get_full_name|default:user.username }}</p>
+                    <p class="text-xs text-emerald-500">Espace Serviteur</p>
+                </div>
             </div>
         </div>
-        <div class="mx-6 border-t border-emerald-300/50"></div>
         <nav class="flex-1 px-4 py-4 space-y-2">
             <a href="{% url 'traning:serviteur_dashboard' %}" class="sidebar-item group flex items-center px-4 py-4 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'serviteur_dashboard' %}active{% endif %}">
                 <i class="fas fa-tachometer-alt w-5 mr-4"></i>
