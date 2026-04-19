@@ -10,9 +10,9 @@ echo "   USER: esther"
 echo "   HOST: 127.0.0.1"
 echo "   PORT: 5433"
 
-# Installation de gevent pour de meilleures performances
-echo "pip installing gevent..."
-pip install gevent
+# Installation des dépendances de performance et PDF
+echo "pip installing gevent and weasyprint..."
+pip install gevent weasyprint
 
 # ------------------------------------------------------------
 # Appliquer les migrations Django

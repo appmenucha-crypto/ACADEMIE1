@@ -67,9 +67,9 @@ class ServiteurForm(forms.ModelForm):
         
         if commit:
             user.save()
-            # Stocker temp_pass dans instance pour view
-            if hasattr(self.instance, '_temp_password'):
-                setattr(self.instance, '_temp_password', temp_pass)
+        
+        # Stocker temp_pass pour que la vue puisse l'afficher
+        setattr(user, '_temp_password', temp_pass)
         
         user.role = 'serviteur'
         return user

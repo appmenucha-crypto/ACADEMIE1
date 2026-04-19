@@ -267,11 +267,14 @@ def admin_results(request):
 
     # Logique d'exportation PDF avec filtres
     if request.GET.get('export') == 'pdf':
-        from weasyprint import HTML, CSS
-        from django.template.loader import render_to_string
+        try:
+            from weasyprint import HTML, CSS
+            from django.template.loader import render_to_string
+        except ImportError:
+            return HttpResponse("L'export PDF n'est pas configuré sur ce serveur (librairie weasyprint manquante).", status=501)
         
         filtre = request.GET.get('filtre', '')
-        all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
+        all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').all().order_by('-date_debut')
         
         if filtre == 'valide':
             all_results = all_results.filter(statut=1)
@@ -281,7 +284,7 @@ def admin_results(request):
             all_results = all_results.filter(statut=2)
         
         for res in all_results:
-            res.score_20 = round(res.score * 0.2, 1)
+            res.score_20 = round((res.score or 0) * 0.2, 1)
         
         # Nom du filtre pour le template
         filtre_display = {
@@ -321,7 +324,7 @@ def admin_results(request):
         recent_results = recent_results.filter(statut=2)
     recent_results = recent_results[:50]
     for result in recent_results:
-        result.score_20 = round(result.score * 0.2, 1)
+        result.score_20 = round((result.score or 0) * 0.2, 1)
         result.display_statut = result.statut
     return render(request, 'admin/results.html', {
         'total_users': total_users,
