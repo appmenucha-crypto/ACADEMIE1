@@ -154,3 +154,8 @@ LOGOUT_REDIRECT_URL = 'traning:login'
 CSRF_TRUSTED_ORIGINS = [
     "https://academie-vh.appliriki.com",
 ]
+
+# Support for large file uploads
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
