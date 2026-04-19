@@ -41,28 +41,56 @@
                 <span class="w-9 h-9 sm:w-11 sm:h-11 bg-gradient-to-br from-accent-blue to-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0">{{ forloop.counter }}</span>
                 <h2 class="text-lg sm:text-2xl font-bold text-charcoal">{{ bloc.name }}</h2>
             </div>
-            <div class="audios-container grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+
+            {% if bloc.audios.exists %}
+            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <i class="fas fa-headphones text-purple-400"></i> Audios
+            </h3>
+            <div class="audios-container grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mb-6">
                 {% for audio in bloc.audios.all %}
                 <div class="audio-card p-3 sm:p-5 bg-white/70 rounded-xl border border-white/50 hover:border-accent-blue/80 transition-all group relative overflow-hidden" tabindex="0">
                     <div class="audio-header flex items-center mb-3">
                         <div class="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl flex items-center justify-center text-white font-bold text-sm mr-3 flex-shrink-0">
                             {{ audio.order }}
                         </div>
-                        <div>
-                            <h4 class="font-semibold text-charcoal text-sm">Vocal {{ audio.order }}</h4>
-                        </div>
+                        <h4 class="font-semibold text-charcoal text-sm">Vocal {{ audio.order }}</h4>
                     </div>
                     <audio class="w-full rounded-xl" preload="metadata" controls>
                         <source src="{{ audio.file.url }}" type="audio/mpeg">
                     </audio>
                 </div>
-                {% empty %}
-                <div class="col-span-full text-center py-12 text-gray-400">
-                    <i class="fas fa-music text-5xl mb-4 opacity-50"></i>
-                    Aucun vocal dans ce bloc
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if bloc.videos.exists %}
+            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <i class="fas fa-video text-blue-400"></i> Vidéos
+            </h3>
+            <div class="videos-container grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
+                {% for video in bloc.videos.all %}
+                <div class="video-card p-3 sm:p-5 bg-white/70 rounded-xl border border-white/50 hover:border-blue-400/80 transition-all">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center text-white font-bold text-sm mr-3 flex-shrink-0">
+                            {{ video.order }}
+                        </div>
+                        <h4 class="font-semibold text-charcoal text-sm">Vidéo {{ video.order }}</h4>
+                    </div>
+                    <video class="w-full rounded-xl" preload="metadata" controls>
+                        <source src="{{ video.file.url }}">
+                    </video>
                 </div>
                 {% endfor %}
             </div>
+            {% endif %}
+
+            {% if not bloc.audios.exists and not bloc.videos.exists %}
+            <div class="text-center py-8 text-gray-400">
+                <i class="fas fa-music text-4xl mb-3 opacity-50 block"></i>
+                Aucun contenu dans ce bloc
+            </div>
+            {% endif %}
+
         </section>
         {% empty %}
         <div class="text-center py-20">

@@ -121,7 +121,7 @@ def admin_courses(request):
         return redirect('/')
     
     from .forms import FormationCreationForm
-    from .models import Formation, Bloc, AudioFile
+    from .models import Formation, Bloc, AudioFile, VideoFile
     
     formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
     formation_form = FormationCreationForm()
@@ -132,16 +132,16 @@ def admin_courses(request):
             form = FormationCreationForm(request.POST, request.FILES)
             if form.is_valid():
                 formation = form.save()
-                
-                # Gestion des audios multiples
+                bloc = None
                 audio_files = request.FILES.getlist('audio_files')
-                if audio_files:
-                    # Création d'un bloc par défaut pour contenir les audios initiaux
+                video_files = request.FILES.getlist('video_files')
+                if audio_files or video_files:
                     bloc = Bloc.objects.create(formation=formation, name="Contenu Principal", order=1)
-                    for i, audio_file in enumerate(audio_files):
-                        AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
-                
-                success_message = "Formation et audios créés avec succès !"
+                for i, audio_file in enumerate(audio_files):
+                    AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
+                for i, video_file in enumerate(video_files):
+                    VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
+                success_message = "Formation créée avec succès !"
                 formation_form = FormationCreationForm()
                 formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
         
@@ -196,28 +196,25 @@ def admin_formation_detail(request, pk):
     
     from .models import Formation, Bloc, AudioFile
     
-    formation = Formation.objects.prefetch_related('blocs__audios').get(pk=pk)
+    formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
     
     success_message = None
     
     if request.method == 'POST':
         if 'add_audios' in request.POST:
-            # On utilise ou crée un bloc unique par défaut pour simplifier
             bloc, created = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
             audio_files = request.FILES.getlist('audio_files')
             current_count = AudioFile.objects.filter(bloc__formation=formation).count()
-            
             for i, file in enumerate(audio_files):
                 AudioFile.objects.create(bloc=bloc, file=file, order=current_count + i + 1)
-            
             success_message = f"{len(audio_files)} audio(s) ajouté(s) avec succès !"
-            formation = Formation.objects.prefetch_related('blocs__audios').get(pk=pk)
+            formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
         elif 'delete_audio' in request.POST:
             pk_audio = request.POST.get('delete_audio')
             try:
                 AudioFile.objects.get(pk=pk_audio).delete()
                 success_message = "Audio supprimé avec succès."
-                formation = Formation.objects.prefetch_related('blocs__audios').get(pk=pk)
+                formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
             except AudioFile.DoesNotExist:
                 pass
         elif 'delete_question' in request.POST:
@@ -366,7 +363,7 @@ def serviteur_formation_detail(request, pk):
     if request.user.role != 'serviteur':
         return redirect('/')
     from .models import Formation, ServiteurFormation
-    formation = Formation.objects.prefetch_related('blocs__audios').get(pk=pk)
+    formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
     sf, created = ServiteurFormation.objects.get_or_create(
         serviteur=request.user,
         formation=formation,
@@ -478,5 +475,4 @@ def login_view(request):
 
             return render(request, 'login.html', {'login_error': True})
 
-    return render(request, 'login.html')
     return render(request, 'login.html')

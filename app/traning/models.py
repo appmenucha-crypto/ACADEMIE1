@@ -47,6 +47,17 @@ class AudioFile(models.Model):
     def __str__(self):
         return f"{self.bloc} - Audio {self.order}"
 
+class VideoFile(models.Model):
+    bloc = models.ForeignKey(Bloc, on_delete=models.CASCADE, related_name='videos')
+    file = models.FileField(upload_to='videos/', verbose_name=_("Fichier vidéo"))
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.bloc} - Vidéo {self.order}"
+
 class ServiteurFormation(models.Model):
     STATUT_CHOICES = [
         (0, 'Échoué'),
