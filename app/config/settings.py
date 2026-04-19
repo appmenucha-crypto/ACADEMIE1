@@ -155,3 +155,10 @@ LOGOUT_REDIRECT_URL = 'traning:login'
 CSRF_TRUSTED_ORIGINS = [
     "https://academie-vh.appliriki.com",
 ]
+
+# Proxy HTTPS (reverse proxy)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
