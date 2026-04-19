@@ -118,28 +118,29 @@ def admin_courses(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
+    formations = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').all().order_by('-created_at')
     formation_form = FormationCreationForm()
     success_message = None
+    show_modal = False
     
     if request.method == 'POST':
         if 'create' in request.POST:
-            form = FormationCreationForm(request.POST, request.FILES)
-            if form.is_valid():
-                formation = form.save()
+            formation_form = FormationCreationForm(request.POST, request.FILES)
+            if formation_form.is_valid():
+                formation = formation_form.save()
                 bloc = None
                 audio_files = request.FILES.getlist('audio_files')
                 video_files = request.FILES.getlist('video_files')
                 if audio_files or video_files:
                     bloc = Bloc.objects.create(formation=formation, name="Contenu Principal", order=1)
-                for i, audio_file in enumerate(audio_files):
-                    AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
-                for i, video_file in enumerate(video_files):
-                    VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
+                    for i, audio_file in enumerate(audio_files):
+                        AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
+                    for i, video_file in enumerate(video_files):
+                        VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
                 success_message = "Formation créée avec succès !"
                 formation_form = FormationCreationForm()
-                formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
-        
+            else:
+                show_modal = True
         elif 'delete_pk' in request.POST:
             pk = request.POST.get('delete_pk')
             try:
@@ -152,7 +153,8 @@ def admin_courses(request):
     return render(request, 'admin/courses.html', {
         'formations': formations,
         'formation_form': formation_form,
-        'success_message': success_message
+        'success_message': success_message,
+        'show_modal': show_modal
     })
 
 @login_required(login_url='/')

@@ -102,7 +102,7 @@ class FormationCreationForm(forms.ModelForm):
         model = Formation
         fields = ['name']
         widgets = {
-            'name': forms.TextInput(attrs={'placeholder': 'Formation Python Avancé'}),
+            'name': forms.TextInput(attrs={'placeholder': 'Ex: Formation Python Avancé', 'class': 'w-full bg-white/50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-accent-blue focus:border-transparent outline-none transition-all'}),
         }
 
 

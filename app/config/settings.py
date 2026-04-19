@@ -22,8 +22,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-q&pfz^17rf@5@86r+92s7_shq#i$*g(7u(k6h+*bai3f@m_1di'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Passer à False en production pour la rapidité
+DEBUG = False
 
 ALLOWED_HOSTS = [
     '127.0.0.1',          # pour le local
@@ -57,6 +57,8 @@ MIDDLEWARE = [
 
 # Active la compression et le caching si nécessaire
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_AUTOREFRESH = False
+WHITENOISE_USE_FINDERS = False
 
 ROOT_URLCONF = 'config.urls'
 

@@ -10,6 +10,10 @@ echo "   USER: esther"
 echo "   HOST: 127.0.0.1"
 echo "   PORT: 5433"
 
+# Installation de gevent pour de meilleures performances
+echo "pip installing gevent..."
+pip install gevent
+
 # ------------------------------------------------------------
 # Appliquer les migrations Django
 # ------------------------------------------------------------
@@ -45,4 +49,4 @@ python manage.py collectstatic --noinput
 # Lancer Gunicorn
 # ------------------------------------------------------------
 echo "🚀 Starting Gunicorn..."
-exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 600
+exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --worker-class gevent --timeout 600
