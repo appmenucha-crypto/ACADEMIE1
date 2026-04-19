@@ -89,11 +89,14 @@
         {% for bloc in formation.blocs.all %}
             {% for video in bloc.videos.all %}
             <div class="p-3 sm:p-4 bg-white border border-purple-100 rounded-2xl hover:shadow-md transition-all">
-                <div class="flex items-center gap-3 mb-2">
+                <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 font-bold text-sm flex-shrink-0">
                         {{ forloop.counter }}
                     </div>
                     <p class="font-semibold text-charcoal truncate text-sm flex-1">{{ video.file.name|slice:'7:' }}</p>
+                    <button onclick="toggleVideo('vp-{{ video.pk }}', this)" class="w-9 h-9 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full hover:bg-purple-500 hover:text-white transition-all flex-shrink-0">
+                        <i class="fas fa-play"></i>
+                    </button>
                     <div class="flex flex-col gap-1 flex-shrink-0">
                         <form method="post" enctype="multipart/form-data">
                             {% csrf_token %}
@@ -112,9 +115,11 @@
                         </form>
                     </div>
                 </div>
-                <video class="w-full rounded-xl" controls preload="none">
-                    <source src="{{ video.file.url }}">
-                </video>
+                <div id="vp-{{ video.pk }}" class="hidden mt-3">
+                    <video class="w-full rounded-xl" controls preload="none">
+                        <source src="{{ video.file.url }}">
+                    </video>
+                </div>
             </div>
             {% endfor %}
         {% empty %}
@@ -169,5 +174,24 @@
 @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 .animate-slide-in { animation: slide-in 0.4s ease-out; }
 </style>
+
+<script>
+function toggleVideo(id, btn) {
+    const player = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    if (player.classList.contains('hidden')) {
+        player.classList.remove('hidden');
+        icon.className = 'fas fa-chevron-up';
+        btn.classList.replace('bg-purple-100', 'bg-purple-500');
+        btn.classList.replace('text-purple-600', 'text-white');
+    } else {
+        player.classList.add('hidden');
+        player.querySelector('video').pause();
+        icon.className = 'fas fa-play';
+        btn.classList.replace('bg-purple-500', 'bg-purple-100');
+        btn.classList.replace('text-white', 'text-purple-600');
+    }
+}
+</script>
 
 {% endblock %}
