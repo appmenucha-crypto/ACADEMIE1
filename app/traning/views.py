@@ -300,14 +300,23 @@ def admin_results(request):
         'total': ServiteurFormation.objects.count()
     }
 
-    recent_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')[:10]
+    filtre = request.GET.get('filtre', '')
+    recent_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
+    if filtre == 'valide':
+        recent_results = recent_results.filter(statut=1)
+    elif filtre == 'echec':
+        recent_results = recent_results.filter(statut=0)
+    elif filtre == 'en_cours':
+        recent_results = recent_results.filter(statut=2)
+    recent_results = recent_results[:50]
     for result in recent_results:
         result.score_20 = round(result.score * 0.2, 1)
         result.display_statut = result.statut
     return render(request, 'admin/results.html', {
         'total_users': total_users,
         'stats': stats,
-        'recent_results': recent_results
+        'recent_results': recent_results,
+        'filtre': filtre,
     })
 
 from django.utils import timezone

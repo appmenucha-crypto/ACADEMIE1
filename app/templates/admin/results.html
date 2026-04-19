@@ -26,12 +26,18 @@
 {% endif %}
 
 <div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
-    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-        <h3 class="font-bold text-charcoal">Performances Étudiants Récentes</h3>
-        <a href="?export=pdf" class="text-sm font-semibold text-accent-blue hover:underline flex items-center gap-1">
-            <i class="fas fa-file-pdf mr-1"></i>Exporter PDF
-        </a>
-
+    <div class="p-4 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h3 class="font-bold text-charcoal">Performances Étudiants</h3>
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- Filtres -->
+            <a href="?" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all {% if not filtre %}bg-charcoal text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">Tous</a>
+            <a href="?filtre=en_cours" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all {% if filtre == 'en_cours' %}bg-amber-500 text-white{% else %}bg-amber-100 text-amber-700 hover:bg-amber-200{% endif %}">⏳ En cours</a>
+            <a href="?filtre=valide" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all {% if filtre == 'valide' %}bg-emerald-500 text-white{% else %}bg-emerald-100 text-emerald-700 hover:bg-emerald-200{% endif %}">✅ Validé</a>
+            <a href="?filtre=echec" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all {% if filtre == 'echec' %}bg-red-500 text-white{% else %}bg-red-100 text-red-700 hover:bg-red-200{% endif %}">❌ Échec</a>
+            <a href="?export=pdf{% if filtre %}&filtre={{ filtre }}{% endif %}" class="px-3 py-1.5 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-xl text-xs font-bold flex items-center gap-1">
+                <i class="fas fa-file-pdf"></i> PDF
+            </a>
+        </div>
     </div>
     <div class="overflow-x-auto">
         <table class="w-full text-left">

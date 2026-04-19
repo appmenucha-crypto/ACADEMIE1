@@ -17,24 +17,6 @@
         <a href="{% url 'traning:admin_courses' %}" class="text-sm text-gray-500 hover:text-accent-blue">
             ← Toutes Formations
         </a>
-        <div class="flex gap-3 w-full sm:w-auto">
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <input type="hidden" name="add_audios" value="1">
-                <label class="flex-1 sm:flex-none bg-accent-blue text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-600 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                    <i class="fas fa-headphones"></i><span>Ajouter Audios</span>
-                    <input type="file" name="audio_files" multiple accept="audio/*" class="hidden" onchange="this.form.submit()">
-                </label>
-            </form>
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <input type="hidden" name="add_videos" value="1">
-                <label class="flex-1 sm:flex-none bg-purple-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:bg-purple-600 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                    <i class="fas fa-video"></i><span>Ajouter Vidéos</span>
-                    <input type="file" name="video_files" multiple accept="video/*" class="hidden" onchange="this.form.submit()">
-                </label>
-            </form>
-        </div>
     </div>
 
     <!-- Liste Audios -->
