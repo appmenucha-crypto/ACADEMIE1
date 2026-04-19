@@ -1,22 +1,21 @@
 import csv
-from datetime import timedelta
-from django.shortcuts import render, redirect
+import json
+from datetime import timedelta, datetime
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LogoutView
 from django.urls import reverse_lazy
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
-from .models import CustomUser
+from django.db.models import Count, Avg, Q
+from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile
+from .models_vertumetre import ServiteurVertumetre
 
 @login_required(login_url='/')
 def admin_dashboard(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
-    from .models import CustomUser, Formation, ServiteurFormation
-    from .models_vertumetre import ServiteurVertumetre
-    from django.db.models import Count, Avg, Q
-    from datetime import timedelta
     
     serviteurs_count = CustomUser.objects.filter(role='serviteur').count()
     formations_count = Formation.objects.count()
@@ -120,9 +119,6 @@ def admin_courses(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    from .forms import FormationCreationForm
-    from .models import Formation, Bloc, AudioFile, VideoFile
-    
     formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
     formation_form = FormationCreationForm()
     success_message = None
@@ -165,9 +161,6 @@ def admin_questionnaires(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    from .models import Formation
-    import json
-    
     formations = Formation.objects.all().order_by('name')
     success_message = None
     
@@ -194,9 +187,7 @@ def admin_formation_detail(request, pk):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    from .models import Formation, Bloc, AudioFile, VideoFile
-    
-    formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
+    formation = get_object_or_404(Formation.objects.prefetch_related('blocs__audios', 'blocs__videos'), pk=pk)
     
     success_message = None
     
@@ -272,8 +263,6 @@ def admin_formation_detail(request, pk):
 def admin_results(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
-    from .models import ServiteurFormation
-    from django.db.models import Count
 
     # Logique d'exportation PDF avec filtres
     if request.GET.get('export') == 'pdf':
@@ -346,7 +335,6 @@ from django.utils import timezone
 def serviteur_dashboard(request):
     if request.user.role != 'serviteur':
         return redirect('/')
-    from .models import ServiteurFormation, Formation
     now = timezone.now()
     formations = ServiteurFormation.objects.filter(serviteur=request.user).select_related('formation').order_by('formation__name')
     
@@ -385,8 +373,6 @@ def serviteur_dashboard(request):
 def serviteur_formations(request):
     if request.user.role != 'serviteur':
         return redirect('/')
-
-    from .models import Formation, ServiteurFormation
 
     formations = Formation.objects.prefetch_related('blocs__audios').all()
 
@@ -432,7 +418,6 @@ def serviteur_formations(request):
 def serviteur_formation_detail(request, pk):
     if request.user.role != 'serviteur':
         return redirect('/')
-    from .models import Formation, ServiteurFormation
     formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
     sf, created = ServiteurFormation.objects.get_or_create(
         serviteur=request.user,
@@ -446,7 +431,6 @@ def serviteur_formation_detail(request, pk):
 def serviteur_questionnaire(request, pk):
     if request.user.role != 'serviteur':
         return redirect('/')
-    from .models import Formation, ServiteurFormation
     formation = Formation.objects.get(pk=pk)
     sf = ServiteurFormation.objects.get(serviteur=request.user, formation=formation)
     
@@ -481,13 +465,12 @@ def serviteur_questionnaire(request, pk):
                 expected = q.get('answer', '').strip().lower()
                 if user_answer_str == expected:
                     score += 1
-        sf.score = int((score / total) * 100)
+        sf.score = int((score / total) * 100) if total > 0 else 0
         sf.date_soumission = timezone.now()
         sf.save()
         return redirect('traning:serviteur_dashboard')
     return render(request, 'serviteur/questionnaire.html', {'formation': formation, 'sf': sf})
 
-from .models_vertumetre import ServiteurVertumetre
 from .forms import VertumetreForm
 
 @login_required(login_url='/')

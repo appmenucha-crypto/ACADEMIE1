@@ -145,8 +145,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Redirection pour l'authentification
 LOGIN_URL = 'traning:login'
-LOGIN_REDIRECT_URL = 'traning:admin_dashboard'
-LOGIN_REDIRECT_URL = 'traning:serviteur_dashboard'
+LOGIN_REDIRECT_URL = 'traning:serviteur_dashboard'  # Default fallback
 LOGOUT_REDIRECT_URL = 'traning:login'
 
 
@@ -155,14 +154,3 @@ LOGOUT_REDIRECT_URL = 'traning:login'
 CSRF_TRUSTED_ORIGINS = [
     "https://academie-vh.appliriki.com",
 ]
-
-# Proxy HTTPS (reverse proxy)
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SAMESITE = 'Lax'
-
-# Upload de fichiers volumineux (audio/vidéo)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000   # 500 MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000   # 500 MB
