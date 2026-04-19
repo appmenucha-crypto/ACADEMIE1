@@ -118,7 +118,7 @@ def admin_courses(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    formations = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').all().order_by('-created_at')
+    formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
     formation_form = FormationCreationForm()
     success_message = None
     show_modal = False
@@ -188,7 +188,7 @@ def admin_formation_detail(request, pk):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    formation = get_object_or_404(Formation.objects.prefetch_related('blocs__audios', 'blocs__videos'), pk=pk)
+    formation = get_object_or_404(Formation, pk=pk)
     
     success_message = None
     
@@ -344,7 +344,7 @@ def serviteur_dashboard(request):
     
     # Ajout d'un statut temporaire pour l'affichage
     for sf in formations:
-        sf.score_20 = round(sf.score * 0.2, 1)
+        sf.score_20 = round((sf.score or 0) * 0.2, 1)
         if sf.statut == 1:
             sf.display_status = 'valid'
         elif sf.statut == 0:
@@ -428,7 +428,7 @@ def serviteur_formation_detail(request, pk):
         formation=formation,
         defaults={'date_debut': timezone.now()}
     )
-    score_20 = round(sf.score * 0.2, 1) if sf.score else 0
+    score_20 = round((sf.score or 0) * 0.2, 1)
     return render(request, 'serviteur/formation_detail.html', {'formation': formation, 'sf': sf, 'score_20': score_20})
 
 @login_required(login_url='/')

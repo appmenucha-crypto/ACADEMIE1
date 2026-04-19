@@ -161,4 +161,12 @@ setTimeout(() => {
 function addAudioField() {
     const container = document.getElementById('audio-fields-container');
     const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center p-2 bg-gray-50 rounded-xl border border-gray-100 
+    div.className = 'flex gap-2 items-center p-2 bg-gray-50 rounded-xl border border-gray-100';
+    div.innerHTML = `
+        <input type="file" name="audio_files" class="text-xs flex-1" accept="audio/*">
+        <button type="button" onclick="this.parentElement.remove()" class="text-danger-red p-1">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
