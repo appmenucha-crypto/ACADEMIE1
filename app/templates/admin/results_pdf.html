@@ -19,7 +19,7 @@
     </style>
 </head>
 <body>
-    <h1>Rapport des Résultats Formations</h1>
+<h1>Rapport des Résultats Formations {{ filtre_display|default:"(Tous)" }}</h1>
     <p class="date">Généré le {{ generated_at|date:"d/m/Y à H:i" }}</p>
     <table>
         <thead>

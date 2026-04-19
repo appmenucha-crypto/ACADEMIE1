@@ -275,19 +275,40 @@ def admin_results(request):
     from .models import ServiteurFormation
     from django.db.models import Count
 
-    # Logique d'exportation CSV
+    # Logique d'exportation PDF avec filtres
     if request.GET.get('export') == 'pdf':
         from weasyprint import HTML, CSS
         from django.template.loader import render_to_string
+        
+        filtre = request.GET.get('filtre', '')
         all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
+        
+        if filtre == 'valide':
+            all_results = all_results.filter(statut=1)
+        elif filtre == 'echec':
+            all_results = all_results.filter(statut=0)
+        elif filtre == 'en_cours':
+            all_results = all_results.filter(statut=2)
+        
         for res in all_results:
             res.score_20 = round(res.score * 0.2, 1)
+        
+        # Nom du filtre pour le template
+        filtre_display = {
+            'valide': 'Validés',
+            'echec': 'Échecs', 
+            'en_cours': 'En cours',
+        }.get(filtre, 'Tous')
+        
         html_string = render_to_string('admin/results_pdf.html', {
             'results': all_results,
             'generated_at': timezone.now(),
+            'filtre': filtre,
+            'filtre_display': filtre_display,
         })
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="resultats_formations.pdf"'
+        filename = f'resultats_formations_{filtre_display.lower().replace(" ", "_")}.pdf'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         HTML(string=html_string).write_pdf(response)
         return response
 
