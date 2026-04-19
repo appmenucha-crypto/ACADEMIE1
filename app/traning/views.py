@@ -127,15 +127,17 @@ def admin_courses(request):
             formation_form = FormationCreationForm(request.POST, request.FILES)
             if formation_form.is_valid():
                 formation = formation_form.save()
-                bloc = None
                 audio_files = request.FILES.getlist('audio_files')
                 video_files = request.FILES.getlist('video_files')
+                
                 if audio_files or video_files:
-                    bloc = Bloc.objects.create(formation=formation, name="Contenu Principal", order=1)
+                    # Création systématique du bloc si au moins un fichier est présent
+                    bloc, _ = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
                     for i, audio_file in enumerate(audio_files):
                         AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
                     for i, video_file in enumerate(video_files):
                         VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
+                
                 success_message = "Formation créée avec succès !"
                 formation_form = FormationCreationForm()
             else:
