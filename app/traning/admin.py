@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Formation, Bloc, AudioFile, ServiteurFormation
+from .models import CustomUser, Formation, Bloc, AudioFile, VideoFile, ServiteurFormation
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
@@ -21,6 +21,11 @@ class AudioInline(admin.TabularInline):
     extra = 1
     fields = ('file', 'order')
 
+class VideoInline(admin.TabularInline):
+    model = VideoFile
+    extra = 1
+    fields = ('file', 'order')
+
 @admin.register(Formation)
 class FormationAdmin(admin.ModelAdmin):
     list_display = ('name', 'created_at')
@@ -33,10 +38,16 @@ class BlocAdmin(admin.ModelAdmin):
     list_display = ('name', 'formation', 'order')
     list_filter = ('formation',)
     search_fields = ('name',)
-    inlines = [AudioInline]
+    inlines = [AudioInline, VideoInline]
 
 @admin.register(AudioFile)
 class AudioFileAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'bloc', 'order')
+    list_filter = ('bloc__formation', 'bloc')
+    search_fields = ('bloc__name',)
+
+@admin.register(VideoFile)
+class VideoFileAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'bloc', 'order')
     list_filter = ('bloc__formation', 'bloc')
     search_fields = ('bloc__name',)
