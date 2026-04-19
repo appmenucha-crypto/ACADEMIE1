@@ -194,7 +194,7 @@ def admin_formation_detail(request, pk):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    from .models import Formation, Bloc, AudioFile
+    from .models import Formation, Bloc, AudioFile, VideoFile
     
     formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
     
@@ -209,6 +209,14 @@ def admin_formation_detail(request, pk):
                 AudioFile.objects.create(bloc=bloc, file=file, order=current_count + i + 1)
             success_message = f"{len(audio_files)} audio(s) ajouté(s) avec succès !"
             formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
+        elif 'add_videos' in request.POST:
+            bloc, created = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
+            video_files = request.FILES.getlist('video_files')
+            current_count = VideoFile.objects.filter(bloc__formation=formation).count()
+            for i, file in enumerate(video_files):
+                VideoFile.objects.create(bloc=bloc, file=file, order=current_count + i + 1)
+            success_message = f"{len(video_files)} vidéo(s) ajoutée(s) avec succès !"
+            formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
         elif 'delete_audio' in request.POST:
             pk_audio = request.POST.get('delete_audio')
             try:
@@ -216,6 +224,14 @@ def admin_formation_detail(request, pk):
                 success_message = "Audio supprimé avec succès."
                 formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
             except AudioFile.DoesNotExist:
+                pass
+        elif 'delete_video' in request.POST:
+            pk_video = request.POST.get('delete_video')
+            try:
+                VideoFile.objects.get(pk=pk_video).delete()
+                success_message = "Vidéo supprimée avec succès."
+                formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
+            except VideoFile.DoesNotExist:
                 pass
         elif 'delete_question' in request.POST:
             q_index = int(request.POST['delete_question'])
