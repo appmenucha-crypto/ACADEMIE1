@@ -118,7 +118,7 @@ def admin_courses(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
+    formations = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').all().order_by('-created_at')
     formation_form = FormationCreationForm()
     success_message = None
     
@@ -132,20 +132,20 @@ def admin_courses(request):
                 video_files = request.FILES.getlist('video_files')
                 if audio_files or video_files:
                     bloc = Bloc.objects.create(formation=formation, name="Contenu Principal", order=1)
-                for i, audio_file in enumerate(audio_files):
-                    AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
-                for i, video_file in enumerate(video_files):
-                    VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
+                    for i, audio_file in enumerate(audio_files):
+                        AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
+                    for i, video_file in enumerate(video_files):
+                        VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
                 success_message = "Formation créée avec succès !"
                 formation_form = FormationCreationForm()
-                formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
+                formations = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').all().order_by('-created_at')
         
         elif 'delete_pk' in request.POST:
             pk = request.POST.get('delete_pk')
             try:
                 Formation.objects.get(pk=pk).delete()
                 success_message = "Formation supprimée avec succès."
-                formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
+                formations = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').all().order_by('-created_at')
             except Formation.DoesNotExist:
                 pass
     
