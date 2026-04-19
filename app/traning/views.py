@@ -10,6 +10,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
 from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile
+from .forms import ServiteurForm, FormationCreationForm, VertumetreForm
 from .models_vertumetre import ServiteurVertumetre
 
 @login_required(login_url='/')
@@ -53,7 +54,6 @@ def admin_serviteurs(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    from .forms import ServiteurForm
     serviteurs = CustomUser.objects.filter(role='serviteur').order_by('-date_joined')
     
     serviteur_form = ServiteurForm()
@@ -108,7 +108,6 @@ def api_get_serviteur(request, pk):
 def admin_vertumetres(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
-    from .models_vertumetre import ServiteurVertumetre
     submissions = ServiteurVertumetre.objects.select_related('serviteur').order_by('-submitted_at')
     return render(request, 'admin/vertumetres.html', {
         'submissions': submissions
@@ -470,8 +469,6 @@ def serviteur_questionnaire(request, pk):
         sf.save()
         return redirect('traning:serviteur_dashboard')
     return render(request, 'serviteur/questionnaire.html', {'formation': formation, 'sf': sf})
-
-from .forms import VertumetreForm
 
 @login_required(login_url='/')
 def serviteur_vertumetre(request):
