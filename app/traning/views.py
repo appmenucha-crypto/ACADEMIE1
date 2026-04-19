@@ -121,26 +121,25 @@ def admin_courses(request):
     formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
     formation_form = FormationCreationForm()
     success_message = None
-    show_modal = False
     
     if request.method == 'POST':
         if 'create' in request.POST:
-            formation_form = FormationCreationForm(request.POST, request.FILES)
-            if formation_form.is_valid():
-                formation = formation_form.save()
+            form = FormationCreationForm(request.POST, request.FILES)
+            if form.is_valid():
+                formation = form.save()
                 bloc = None
                 audio_files = request.FILES.getlist('audio_files')
                 video_files = request.FILES.getlist('video_files')
                 if audio_files or video_files:
                     bloc = Bloc.objects.create(formation=formation, name="Contenu Principal", order=1)
-                    for i, audio_file in enumerate(audio_files):
-                        AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
-                    for i, video_file in enumerate(video_files):
-                        VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
+                for i, audio_file in enumerate(audio_files):
+                    AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
+                for i, video_file in enumerate(video_files):
+                    VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
                 success_message = "Formation créée avec succès !"
                 formation_form = FormationCreationForm()
-            else:
-                show_modal = True
+                formations = Formation.objects.prefetch_related('blocs__audios').all().order_by('-created_at')
+        
         elif 'delete_pk' in request.POST:
             pk = request.POST.get('delete_pk')
             try:
@@ -153,8 +152,7 @@ def admin_courses(request):
     return render(request, 'admin/courses.html', {
         'formations': formations,
         'formation_form': formation_form,
-        'success_message': success_message,
-        'show_modal': show_modal
+        'success_message': success_message
     })
 
 @login_required(login_url='/')
@@ -188,7 +186,7 @@ def admin_formation_detail(request, pk):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    formation = get_object_or_404(Formation, pk=pk)
+    formation = get_object_or_404(Formation.objects.prefetch_related('blocs__audios', 'blocs__videos'), pk=pk)
     
     success_message = None
     
@@ -267,14 +265,11 @@ def admin_results(request):
 
     # Logique d'exportation PDF avec filtres
     if request.GET.get('export') == 'pdf':
-        try:
-            from weasyprint import HTML, CSS
-            from django.template.loader import render_to_string
-        except ImportError:
-            return HttpResponse("L'export PDF n'est pas configuré sur ce serveur (librairie weasyprint manquante).", status=501)
+        from weasyprint import HTML, CSS
+        from django.template.loader import render_to_string
         
         filtre = request.GET.get('filtre', '')
-        all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').all().order_by('-date_debut')
+        all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
         
         if filtre == 'valide':
             all_results = all_results.filter(statut=1)
@@ -284,7 +279,7 @@ def admin_results(request):
             all_results = all_results.filter(statut=2)
         
         for res in all_results:
-            res.score_20 = round((res.score or 0) * 0.2, 1)
+            res.score_20 = round(res.score * 0.2, 1)
         
         # Nom du filtre pour le template
         filtre_display = {
@@ -324,7 +319,7 @@ def admin_results(request):
         recent_results = recent_results.filter(statut=2)
     recent_results = recent_results[:50]
     for result in recent_results:
-        result.score_20 = round((result.score or 0) * 0.2, 1)
+        result.score_20 = round(result.score * 0.2, 1)
         result.display_statut = result.statut
     return render(request, 'admin/results.html', {
         'total_users': total_users,
@@ -344,7 +339,7 @@ def serviteur_dashboard(request):
     
     # Ajout d'un statut temporaire pour l'affichage
     for sf in formations:
-        sf.score_20 = round((sf.score or 0) * 0.2, 1)
+        sf.score_20 = round(sf.score * 0.2, 1)
         if sf.statut == 1:
             sf.display_status = 'valid'
         elif sf.statut == 0:
@@ -428,7 +423,7 @@ def serviteur_formation_detail(request, pk):
         formation=formation,
         defaults={'date_debut': timezone.now()}
     )
-    score_20 = round((sf.score or 0) * 0.2, 1)
+    score_20 = round(sf.score * 0.2, 1) if sf.score else 0
     return render(request, 'serviteur/formation_detail.html', {'formation': formation, 'sf': sf, 'score_20': score_20})
 
 @login_required(login_url='/')

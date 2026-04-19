@@ -67,9 +67,9 @@ class ServiteurForm(forms.ModelForm):
         
         if commit:
             user.save()
-        
-        # Stocker temp_pass pour que la vue puisse l'afficher
-        setattr(user, '_temp_password', temp_pass)
+            # Stocker temp_pass dans instance pour view
+            if hasattr(self.instance, '_temp_password'):
+                setattr(self.instance, '_temp_password', temp_pass)
         
         user.role = 'serviteur'
         return user
@@ -102,7 +102,7 @@ class FormationCreationForm(forms.ModelForm):
         model = Formation
         fields = ['name']
         widgets = {
-            'name': forms.TextInput(attrs={'placeholder': 'Ex: Formation Python Avancé', 'class': 'w-full bg-white/50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-accent-blue focus:border-transparent outline-none transition-all'}),
+            'name': forms.TextInput(attrs={'placeholder': 'Formation Python Avancé'}),
         }
 
 

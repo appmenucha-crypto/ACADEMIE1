@@ -147,12 +147,6 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
     document.body.style.overflow = '';
 }
-
-// Rouvrir le modal en cas d'erreur de formulaire
-{% if show_modal %}
-window.addEventListener('DOMContentLoaded', () => openModal('addModal'));
-{% endif %}
-
 setTimeout(() => {
     const toast = document.getElementById('success-toast');
     if (toast) toast.style.animation = 'slide-in 0.4s ease-out, fade-out 0.4s ease-out 3s';
@@ -161,12 +155,27 @@ setTimeout(() => {
 function addAudioField() {
     const container = document.getElementById('audio-fields-container');
     const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center p-2 bg-gray-50 rounded-xl border border-gray-100';
+    div.className = 'flex gap-2 items-center p-2 bg-gray-50 rounded-xl border border-gray-100 animate-slide-in';
     div.innerHTML = `
-        <input type="file" name="audio_files" class="text-xs flex-1" accept="audio/*">
-        <button type="button" onclick="this.parentElement.remove()" class="text-danger-red p-1">
-            <i class="fas fa-times"></i>
+        <input type="file" name="audio_files" accept="audio/*" required class="flex-1 text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-accent-blue file:text-white hover:file:bg-blue-600 cursor-pointer">
+        <button type="button" onclick="this.parentElement.remove()" class="p-2 text-danger-red hover:bg-danger-red/10 rounded-lg transition-colors">
+            <i class="fas fa-trash-alt"></i>
         </button>
     `;
     container.appendChild(div);
 }
+
+function addVideoField() {
+    const container = document.getElementById('video-fields-container');
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 items-center p-2 bg-purple-50 rounded-xl border border-purple-100 animate-slide-in';
+    div.innerHTML = `
+        <input type="file" name="video_files" accept="video/*" required class="flex-1 text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-500 file:text-white hover:file:bg-purple-600 cursor-pointer">
+        <button type="button" onclick="this.parentElement.remove()" class="p-2 text-danger-red hover:bg-danger-red/10 rounded-lg transition-colors">
+            <i class="fas fa-trash-alt"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+        </script>
+    {% endblock %}
