@@ -225,6 +225,30 @@ def admin_formation_detail(request, pk):
                 formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
             except AudioFile.DoesNotExist:
                 pass
+        elif 'replace_audio' in request.POST:
+            pk_audio = request.POST.get('replace_audio')
+            new_file = request.FILES.get('new_audio_file')
+            if new_file:
+                try:
+                    audio = AudioFile.objects.get(pk=pk_audio)
+                    audio.file = new_file
+                    audio.save()
+                    success_message = "Audio remplacé avec succès."
+                    formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
+                except AudioFile.DoesNotExist:
+                    pass
+        elif 'replace_video' in request.POST:
+            pk_video = request.POST.get('replace_video')
+            new_file = request.FILES.get('new_video_file')
+            if new_file:
+                try:
+                    video = VideoFile.objects.get(pk=pk_video)
+                    video.file = new_file
+                    video.save()
+                    success_message = "Vidéo remplacée avec succès."
+                    formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
+                except VideoFile.DoesNotExist:
+                    pass
         elif 'delete_video' in request.POST:
             pk_video = request.POST.get('delete_video')
             try:
