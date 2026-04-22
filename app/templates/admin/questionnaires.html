@@ -75,22 +75,23 @@
 
         <input type="text" placeholder="Votre question..." class="q-text w-full font-bold text-charcoal border-b border-gray-100 py-2 focus:border-accent-blue outline-none" oninput="updatePreview()">
         
-        <div class="grid grid-cols-2 gap-2 mt-2">
-        <!-- Champs pour QCM -->
-        <div class="qcm-fields grid grid-cols-2 gap-2 mt-2">
-            <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                <input type="radio" name="correct_INDEX" class="q-correct w-4 h-4 accent-success-green" checked onchange="updatePreview()">
-                <input type="text" placeholder="Option A" class="q-opt w-full bg-transparent text-sm outline-none" oninput="updatePreview()">
+        <div class="mt-4">
+            <!-- Champs pour QCM -->
+            <div class="qcm-fields grid grid-cols-2 gap-3">
+                <div class="flex items-center gap-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <input type="radio" name="correct_INDEX" class="q-correct w-4 h-4 accent-success-green" checked onchange="updatePreview()">
+                    <input type="text" placeholder="Option A" class="q-opt w-full bg-transparent text-sm outline-none font-medium" oninput="updatePreview()">
+                </div>
+                <div class="flex items-center gap-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <input type="radio" name="correct_INDEX" class="q-correct w-4 h-4 accent-success-green" onchange="updatePreview()">
+                    <input type="text" placeholder="Option B" class="q-opt w-full bg-transparent text-sm outline-none font-medium" oninput="updatePreview()">
+                </div>
             </div>
-            <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                <input type="radio" name="correct_INDEX" class="q-correct w-4 h-4 accent-success-green" onchange="updatePreview()">
-                <input type="text" placeholder="Option B" class="q-opt w-full bg-transparent text-sm outline-none" oninput="updatePreview()">
-            </div>
-        </div>
 
-        <!-- Champ pour Réponse Libre -->
-        <div class="text-fields hidden mt-2">
-            <input type="text" placeholder="Réponse attendue (pour validation)..." class="q-answer w-full bg-gray-50 p-3 rounded-xl border border-gray-100 text-sm outline-none focus:border-accent-blue" oninput="updatePreview()">
+            <!-- Champ pour Réponse Libre -->
+            <div class="text-fields hidden">
+                <input type="text" placeholder="Réponse attendue (pour validation)..." class="q-answer w-full bg-gray-50 p-3 rounded-xl border border-gray-100 text-sm outline-none focus:border-accent-blue font-medium" oninput="updatePreview()">
+            </div>
         </div>
     </div>
 </template>

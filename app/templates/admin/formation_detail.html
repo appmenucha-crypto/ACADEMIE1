@@ -143,6 +143,11 @@
                     </div>
                     {% endfor %}
                 </div>
+                {% elif question_data.answer %}
+                <div class="mt-2 p-3 bg-blue-50 rounded-xl border border-dashed border-blue-200 text-sm">
+                    <span class="text-gray-500 font-medium italic">Réponse attendue :</span>
+                    <span class="text-charcoal font-bold">"{{ question_data.answer }}"</span>
+                </div>
                 {% endif %}
             </div>
             {% endfor %}
