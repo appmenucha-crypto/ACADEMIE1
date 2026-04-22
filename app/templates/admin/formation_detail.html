@@ -134,15 +134,24 @@
                         <i class="fas fa-trash"></i>
                     </button>
                 </form>
-                <p class="font-bold text-charcoal mb-2 pr-8">{{ forloop.counter }}. {{ question_data.question }}</p>
+                <p class="font-bold text-xl text-charcoal mb-4 pr-8">{{ forloop.counter }}. {{ question_data.question }}</p>
                 {% if question_data.options %}
-                <div class="space-y-1">
+                <div class="space-y-2 mb-6">
                     {% for option in question_data.options %}
-                    <div class="flex items-center gap-2 text-sm {% if forloop.counter0 == question_data.correct %}text-success-green font-bold{% else %}text-gray-500{% endif %}">
-                        <i class="fas {% if forloop.counter0 == question_data.correct %}fa-check-circle{% else %}fa-circle text-[8px]{% endif %}"></i> {{ option }}
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border {% if forloop.counter0 == question_data.correct %}border-success-green bg-success-green/10{% endif %}">
+                        <span class="w-6 h-6 flex items-center justify-center font-bold text-sm rounded-full border-2 {% if forloop.counter0 == question_data.correct %}bg-success-green text-white border-success-green{% else %}bg-white text-gray-500 border-gray-300{% endif %}">{{ forloop.parent.loop.counter }}.{{ forloop.counter }}</span>
+                        <span class="font-semibold text-charcoal flex-1">{{ option }}</span>
+                        {% if forloop.counter0 == question_data.correct %}
+                        <i class="fas fa-check-circle text-success-green text-xl"></i>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
+                <div class="bg-gradient-to-r from-success-green/10 to-blue-500/10 border border-success-green/30 rounded-2xl p-4 text-center">
+                    <i class="fas fa-star text-success-green text-2xl block mb-2"></i>
+                    <p class="text-success-green font-bold text-lg">✅ Réponse correcte mise en évidence</p>
+                </div>
+                {% endif %}
                 {% endif %}
             </div>
             {% endfor %}
