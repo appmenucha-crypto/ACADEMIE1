@@ -8,6 +8,7 @@ from django.contrib.auth.views import LogoutView
 from django.urls import reverse_lazy
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Count, Avg, Q
 from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile
 from .forms import ServiteurForm, FormationCreationForm, VertumetreForm
@@ -126,17 +127,18 @@ def admin_courses(request):
         if 'create' in request.POST:
             formation_form = FormationCreationForm(request.POST, request.FILES)
             if formation_form.is_valid():
-                formation = formation_form.save()
-                audio_files = request.FILES.getlist('audio_files')
-                video_files = request.FILES.getlist('video_files')
-                
-                if audio_files or video_files:
-                    # Création systématique du bloc si au moins un fichier est présent
-                    bloc, _ = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
-                    for i, audio_file in enumerate(audio_files):
-                        AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
-                    for i, video_file in enumerate(video_files):
-                        VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
+                with transaction.atomic():
+                    formation = formation_form.save()
+                    audio_files = request.FILES.getlist('audio_files')
+                    video_files = request.FILES.getlist('video_files')
+                    
+                    if audio_files or video_files:
+                        # Création systématique du bloc si au moins un fichier est présent
+                        bloc, _ = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
+                        for i, audio_file in enumerate(audio_files):
+                            AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
+                        for i, video_file in enumerate(video_files):
+                            VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
                 
                 success_message = "Formation créée avec succès !"
                 formation_form = FormationCreationForm()
@@ -197,19 +199,21 @@ def admin_formation_detail(request, pk):
     
     if request.method == 'POST':
         if 'add_audios' in request.POST:
-            bloc, created = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
-            audio_files = request.FILES.getlist('audio_files')
-            current_count = AudioFile.objects.filter(bloc__formation=formation).count()
-            for i, file in enumerate(audio_files):
-                AudioFile.objects.create(bloc=bloc, file=file, order=current_count + i + 1)
+            with transaction.atomic():
+                bloc, created = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
+                audio_files = request.FILES.getlist('audio_files')
+                current_count = AudioFile.objects.filter(bloc__formation=formation).count()
+                for i, file in enumerate(audio_files):
+                    AudioFile.objects.create(bloc=bloc, file=file, order=current_count + i + 1)
             success_message = f"{len(audio_files)} audio(s) ajouté(s) avec succès !"
             formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
         elif 'add_videos' in request.POST:
-            bloc, created = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
-            video_files = request.FILES.getlist('video_files')
-            current_count = VideoFile.objects.filter(bloc__formation=formation).count()
-            for i, file in enumerate(video_files):
-                VideoFile.objects.create(bloc=bloc, file=file, order=current_count + i + 1)
+            with transaction.atomic():
+                bloc, created = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
+                video_files = request.FILES.getlist('video_files')
+                current_count = VideoFile.objects.filter(bloc__formation=formation).count()
+                for i, file in enumerate(video_files):
+                    VideoFile.objects.create(bloc=bloc, file=file, order=current_count + i + 1)
             success_message = f"{len(video_files)} vidéo(s) ajoutée(s) avec succès !"
             formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
         elif 'delete_audio' in request.POST:
