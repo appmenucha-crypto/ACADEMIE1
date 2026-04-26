@@ -82,6 +82,16 @@ def admin_serviteurs(request):
                 pass
             # else: errors in form
     
+        elif 'delete_pk' in request.POST:
+            pk = request.POST.get('delete_pk')
+            try:
+                serviteur = CustomUser.objects.get(id=pk, role='serviteur')
+                username = serviteur.username
+                serviteur.delete()
+                success_message = f"Serviteur '{username}' supprimé avec succès."
+            except CustomUser.DoesNotExist:
+                pass
+
     return render(request, 'admin/serviteurs.html', {
         'serviteurs': serviteurs,
         'serviteur_form': serviteur_form,
