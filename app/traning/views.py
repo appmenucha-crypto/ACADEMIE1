@@ -37,7 +37,8 @@ def admin_dashboard(request):
     recent_labels = [item['date_soumission__date'] for item in recent_formations]
     recent_data = [round(item['avg'],1) if item['avg'] else 0 for item in recent_formations]
     
-    top_serviteurs = ServiteurFormation.objects.filter(date_soumission__isnull=False).values('serviteur__username').annotate(avg_score=Avg('score')/5, count=Count('id')).order_by('-avg_score')[:5]
+    top_serviteurs = ServiteurFormation.objects.filter(date_soumission__isnull=False).values('serviteur__username').annotate(avg_score=Avg('score')/5, count=Count('id')).order_by('-avg_score')[:10]
+
     
     return render(request, 'admin/dashboard.html', {
         'students_count': serviteurs_count,
@@ -81,7 +82,6 @@ def admin_serviteurs(request):
             except CustomUser.DoesNotExist:
                 pass
             # else: errors in form
-    
         elif 'delete_pk' in request.POST:
             pk = request.POST.get('delete_pk')
             try:
@@ -284,35 +284,39 @@ def admin_results(request):
 
     # Logique d'exportation PDF avec filtres
     if request.GET.get('export') == 'pdf':
-        from weasyprint import HTML, CSS
+        from weasyprint import HTML
         from django.template.loader import render_to_string
-        
+
         filtre = request.GET.get('filtre', '')
+        only_with_avg = request.GET.get('only_with_avg', 'all')
+
         all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
-        
+
+
         if filtre == 'valide':
             all_results = all_results.filter(statut=1)
         elif filtre == 'echec':
             all_results = all_results.filter(statut=0)
         elif filtre == 'en_cours':
             all_results = all_results.filter(statut=2)
-        
+
         for res in all_results:
             res.score_20 = round(res.score * 0.2, 1)
-        
-        # Nom du filtre pour le template
+
         filtre_display = {
             'valide': 'Validés',
-            'echec': 'Échecs', 
+            'echec': 'Échecs',
             'en_cours': 'En cours',
         }.get(filtre, 'Tous')
-        
+
         html_string = render_to_string('admin/results_pdf.html', {
             'results': all_results,
             'generated_at': timezone.now(),
             'filtre': filtre,
             'filtre_display': filtre_display,
+            'only_with_avg': only_with_avg,
         })
+
         response = HttpResponse(content_type='application/pdf')
         filename = f'resultats_formations_{filtre_display.lower().replace(" ", "_")}.pdf'
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -329,6 +333,8 @@ def admin_results(request):
     }
 
     filtre = request.GET.get('filtre', '')
+
+    # 1) Derniers résultats (affichage tableau historique)
     recent_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
     if filtre == 'valide':
         recent_results = recent_results.filter(statut=1)
@@ -336,16 +342,106 @@ def admin_results(request):
         recent_results = recent_results.filter(statut=0)
     elif filtre == 'en_cours':
         recent_results = recent_results.filter(statut=2)
+
     recent_results = recent_results[:50]
     for result in recent_results:
         result.score_20 = round(result.score * 0.2, 1)
         result.display_statut = result.statut
+
+    # 2) Moyennes mensuelles & semestrielles par étudiant (tous les étudiants)
+    now = timezone.localtime(timezone.now())
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if now.month == 12:
+        next_month_start = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        next_month_start = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # Semestre courant : S1 (jan-jun) / S2 (jul-dec)
+    semestre = 1 if now.month <= 6 else 2
+    if semestre == 1:
+        sem_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        sem_end = now.replace(month=7, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        sem_start = now.replace(month=7, day=1, hour=0, minute=0, second=0, microsecond=0)
+        if now.month <= 12:
+            sem_end = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            sem_end = now.replace(year=now.year, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # On calcule les agrégats sur ServiteurFormation, puis on map vers tous les serviteurs
+    base_qs = ServiteurFormation.objects.select_related('serviteur').all()
+    if filtre == 'valide':
+        base_qs = base_qs.filter(statut=1)
+    elif filtre == 'echec':
+        base_qs = base_qs.filter(statut=0)
+    elif filtre == 'en_cours':
+        base_qs = base_qs.filter(statut=2)
+
+    monthly = (
+        base_qs.filter(date_soumission__gte=month_start, date_soumission__lt=next_month_start)
+        .values('serviteur_id')
+        .annotate(avg_month=Avg('score'))
+        .annotate(cnt_month=Count('id'))
+    )
+
+    semestrial = (
+        base_qs.filter(date_soumission__gte=sem_start, date_soumission__lt=sem_end)
+        .values('serviteur_id')
+        .annotate(avg_sem=Avg('score'))
+        .annotate(cnt_sem=Count('id'))
+    )
+
+    monthly_map = {row['serviteur_id']: row for row in monthly}
+    sem_map = {row['serviteur_id']: row for row in semestrial}
+
+    serviteurs = list(CustomUser.objects.filter(role='serviteur').order_by('-date_joined'))
+    results_by_student = []
+    for s in serviteurs:
+        m = monthly_map.get(s.id)
+        sem = sem_map.get(s.id)
+
+        avg_month_score = (m['avg_month'] or 0) if m else 0
+        avg_sem_score = (sem['avg_sem'] or 0) if sem else 0
+
+        results_by_student.append({
+            'serviteur': s,
+            'avg_month_20': round(avg_month_score * 0.2, 1) if m else 0,
+            'cnt_month': m['cnt_month'] if m else 0,
+            'avg_sem_20': round(avg_sem_score * 0.2, 1) if sem else 0,
+            'cnt_sem': sem['cnt_sem'] if sem else 0,
+        })
+
+    # Trier : du plus fort au plus faible (principalement sur la moyenne mensuelle,
+    # sinon fallback sur semestrielle puis nom)
+    results_by_student.sort(key=lambda x: (x.get('avg_month_20', 0), x.get('avg_sem_20', 0), x['serviteur'].username), reverse=True)
+
+    # Filtre optionnel (afficher seulement ceux qui ont une moyenne non nulle)
+    only_with_avg = request.GET.get('only_with_avg', 'all')
+    if only_with_avg == 'month':
+        # Significatif : moyenne >= 10 (sur /20)
+        results_by_student = [
+            r for r in results_by_student
+            if (r.get('cnt_month', 0) or 0) > 0 and (r.get('avg_month_20', 0) or 0) >= 10
+        ]
+    elif only_with_avg == 'sem':
+        results_by_student = [
+            r for r in results_by_student
+            if (r.get('cnt_sem', 0) or 0) > 0 and (r.get('avg_sem_20', 0) or 0) >= 10
+        ]
+
+
     return render(request, 'admin/results.html', {
+
+
         'total_users': total_users,
         'stats': stats,
         'recent_results': recent_results,
         'filtre': filtre,
+        'results_by_student': results_by_student,
+        'semestre': semestre,
+        'month_label': now.strftime('%B %Y').capitalize(),
     })
+
 
 from django.utils import timezone
 
