@@ -971,9 +971,11 @@ def serviteur_vertumetre(request):
         'is_submitted': is_submitted,
         'submitted_at': vert.submitted_at,
         'days_since_submit': (timezone.now() - vert.submitted_at).days if is_submitted else 0,
+        'submissions_count': vert.submissions_count or 0,
     }
 
     return render(request, 'serviteur/vertumetre.html', context)
+
 
 
 def logout_view(request):

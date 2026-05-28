@@ -4,9 +4,16 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
 class ServiteurVertumetre(models.Model):
-    serviteur = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={'role': 'serviteur'}, verbose_name=_("Serviteur"))
+    serviteur = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        limit_choices_to={'role': 'serviteur'},
+        verbose_name=_("Serviteur"),
+    )
     answers = models.JSONField(default=dict, blank=True, verbose_name=_("Réponses"))
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Date de soumission"))
+    submissions_count = models.PositiveIntegerField(default=0, verbose_name=_("Nombre de soumissions"))
+
 
     class Meta:
         verbose_name = _("Vertumètre Serviteur")

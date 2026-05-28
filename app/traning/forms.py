@@ -239,7 +239,14 @@ class VertumetreForm(forms.ModelForm):
     def save(self, serviteur):
         answers = {k: self.cleaned_data[k] for k in self.cleaned_data if k.startswith('q')}
         vert, created = ServiteurVertumetre.objects.get_or_create(serviteur=serviteur)
+
         vert.answers = answers
         vert.submitted_at = timezone.now()
+
+        # Compteur : incrémenté à chaque soumission acceptée.
+        vert.submissions_count = (vert.submissions_count or 0) + 1
+
         vert.save()
         return vert
+
+

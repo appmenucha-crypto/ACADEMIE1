@@ -8,12 +8,33 @@
 {% block serviteur_content %}
 <div class="max-w-4xl mx-auto">
     {% if is_submitted %}
-        <div class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-6 sm:p-8 rounded-3xl mb-8 text-center shadow-2xl">
+        <div class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-6 sm:p-8 rounded-3xl mb-4 text-center shadow-2xl">
             <i class="fas fa-check-circle text-6xl mb-4 block"></i>
             <h2 class="text-3xl font-bold mb-2">Questionnaire soumis !</h2>
             <p class="text-xl mb-4">Date de soumission: {{ submitted_at|date:"d/m/Y H:i" }}</p>
-            <p class="text-lg mb-4">Il y a {{ days_since_submit }} jour{{ days_since_submit|pluralize }}.</p>
+            <p class="text-lg mb-2">Il y a {{ days_since_submit }} jour{{ days_since_submit|pluralize }}.</p>
             <p class="text-lg">Réinitialisation automatique après 7 jours.</p>
+        </div>
+
+        <!-- Petit tableau : statut + répétitions -->
+        <div class="max-w-xl mx-auto mb-8">
+            <div class="bg-white/70 backdrop-blur-xl p-5 sm:p-6 rounded-2xl border border-white/50 shadow-xl">
+                <h3 class="text-lg sm:text-xl font-bold text-charcoal mb-4 flex items-center gap-3">
+                    <i class="fas fa-table text-emerald-500"></i>
+                    Votre progression
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <div class="text-sm font-semibold text-emerald-700">Dernière soumission</div>
+                        <div class="text-base font-bold text-emerald-900">{{ submitted_at|date:"d/m/Y" }}</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <div class="text-sm font-semibold text-emerald-700">Soumissions</div>
+                        <div class="text-base font-bold text-emerald-900">{{ submissions_count|default:"0" }}</div>
+                        <div class="text-xs text-emerald-700/80 mt-1">(incrémenté à chaque envoi)</div>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="bg-white/70 backdrop-blur-xl p-8 rounded-3xl border border-white/50 shadow-xl">
             <h3 class="text-xl sm:text-2xl font-bold text-charcoal mb-6 flex items-center gap-3">
