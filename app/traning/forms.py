@@ -236,6 +236,7 @@ class VertumetreForm(forms.ModelForm):
         model = ServiteurVertumetre
         fields = []
 
+
     def save(self, serviteur):
         answers = {k: self.cleaned_data[k] for k in self.cleaned_data if k.startswith('q')}
         vert, created = ServiteurVertumetre.objects.get_or_create(serviteur=serviteur)
@@ -248,5 +249,6 @@ class VertumetreForm(forms.ModelForm):
 
         vert.save()
         return vert
+
 
 
