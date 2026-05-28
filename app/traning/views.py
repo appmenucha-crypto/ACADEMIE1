@@ -289,8 +289,10 @@ def admin_results(request):
 
         filtre = request.GET.get('filtre', '')
         only_with_avg = request.GET.get('only_with_avg', 'all')
+        show_averages = request.GET.get('show_averages', '0')
 
         all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
+
 
 
         if filtre == 'valide':
@@ -315,7 +317,9 @@ def admin_results(request):
             'filtre': filtre,
             'filtre_display': filtre_display,
             'only_with_avg': only_with_avg,
+            'show_averages': show_averages,
         })
+
 
         response = HttpResponse(content_type='application/pdf')
         filename = f'resultats_formations_{filtre_display.lower().replace(" ", "_")}.pdf'
@@ -430,9 +434,9 @@ def admin_results(request):
         ]
 
 
+    show_averages = request.GET.get('show_averages', '0')
+
     return render(request, 'admin/results.html', {
-
-
         'total_users': total_users,
         'stats': stats,
         'recent_results': recent_results,
@@ -440,7 +444,9 @@ def admin_results(request):
         'results_by_student': results_by_student,
         'semestre': semestre,
         'month_label': now.strftime('%B %Y').capitalize(),
+        'show_averages': show_averages,
     })
+
 
 
 from django.utils import timezone

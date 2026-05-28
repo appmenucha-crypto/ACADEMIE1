@@ -39,6 +39,9 @@
             </a>
         </div>
     </div>
+    {# Afficher les moyennes uniquement si l'admin clique sur "Moyennes" (via show_averages=1) #}
+    {% if show_averages == '1' %}
+
     <div class="p-4 sm:p-6 border-b border-gray-100 bg-white">
         <div class="text-sm text-gray-600">
             <span class="font-bold">Moyennes :</span>
@@ -48,6 +51,7 @@
     </div>
 
     <div class="overflow-x-auto border-t border-gray-100">
+
         <table class="w-full text-left">
             <thead>
                 <tr class="bg-gray-50/50">

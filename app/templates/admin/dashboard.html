@@ -70,7 +70,7 @@
 <!-- Top performeurs -->
 <div class="glass-panel p-4 sm:p-6 rounded-2xl">
     <h3 class="text-base sm:text-2xl font-bold mb-4 flex items-center gap-3">
-        <i class="fas fa-trophy text-yellow-500"></i>Top 5 Serviteurs
+        <i class="fas fa-trophy text-yellow-500"></i>Top 10 Serviteurs
     </h3>
     <div class="space-y-2">
         {% for top in top_serviteurs %}
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(ctx1, {
         type: 'doughnut',
         data: {
-labels: ['✅ Validé', '❌ Échoué', '⏳ En cours'],
+            labels: ['✅ Validé', '❌ Échoué', '⏳ En cours'],
             datasets: [{
 data: [{{ sf_stats.validated|default:0 }}, {{ sf_stats.failed|default:0 }}, {{ sf_stats.pending|default:0 }}],
                 backgroundColor: ['#10B981', '#EF4444', '#3B82F6'],
@@ -122,10 +122,10 @@ data: [{{ sf_stats.validated|default:0 }}, {{ sf_stats.failed|default:0 }}, {{ s
     new Chart(ctx2, {
         type: 'line',
         data: {
-labels: {{ recent_labels|safe|default:"[]" }},
+            labels: {{ recent_labels|safe|default:"[]" }},
             datasets: [{
                 label: 'Score moyen /20',
-data: {{ recent_data|safe|default:"[]" }},
+                data: {{ recent_data|safe|default:"[]" }},
                 borderColor: '#10B981',
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 tension: 0.4,
