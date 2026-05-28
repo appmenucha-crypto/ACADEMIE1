@@ -17,7 +17,6 @@
         <div class="text-3xl font-bold text-emerald-600">
             {{ stats.valide }}
         </div>
-
         <div class="text-sm uppercase text-gray-500 tracking-wide">
             Validé
         </div>
@@ -27,7 +26,6 @@
         <div class="text-3xl font-bold text-red-600">
             {{ stats.echoue }}
         </div>
-
         <div class="text-sm uppercase text-gray-500 tracking-wide">
             Échoué
         </div>
@@ -37,7 +35,6 @@
         <div class="text-3xl font-bold text-amber-600">
             {{ stats.en_cours }}
         </div>
-
         <div class="text-sm uppercase text-gray-500 tracking-wide">
             En cours
         </div>
@@ -53,7 +50,7 @@
 <div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
 
     <!-- HEADER -->
-    <div class="p-4 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div class="p-4 sm:p-6 border-b border-gray-100 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
 
         <h3 class="font-bold text-charcoal">
             Performances Étudiants
@@ -117,13 +114,105 @@
                 📊 Moyennes
             </a>
 
-            <!-- PDF -->
-            <a href="?export=pdf{% if filtre %}&filtre={{ filtre }}{% endif %}"
-               class="px-3 py-1.5 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-xl text-xs font-bold flex items-center gap-1">
-                <i class="fas fa-file-pdf"></i> PDF
-            </a>
-
         </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- FILTRE MOIS / SEMESTRE -->
+    <!-- ========================= -->
+
+    {% if show_averages == '1' %}
+
+    <div class="p-4 sm:p-6 border-b border-gray-100 bg-gray-50">
+
+        <form method="get"
+              class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+
+            <input type="hidden"
+                   name="show_averages"
+                   value="1">
+
+            <!-- MOIS -->
+            <div>
+
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Choisir le mois
+                </label>
+
+                <select name="month"
+                        class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
+
+                    {% for m in months %}
+
+                    <option value="{{ m.value }}"
+                            {% if selected_month == m.value %}
+                                selected
+                            {% endif %}>
+
+                        {{ m.label }}
+
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+            <!-- SEMESTRE -->
+            <div>
+
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Période Semestre
+                </label>
+
+                <select name="semester"
+                        class="w-full rounded-xl border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
+
+                    <option value="1"
+                            {% if selected_semester == '1' %}
+                                selected
+                            {% endif %}>
+                        Semestre 1 (Jan - Juin)
+                    </option>
+
+                    <option value="2"
+                            {% if selected_semester == '2' %}
+                                selected
+                            {% endif %}>
+                        Semestre 2 (Juil - Déc)
+                    </option>
+
+                </select>
+
+            </div>
+
+            <!-- FILTRE -->
+            <div>
+
+                <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all">
+
+                    Appliquer
+
+                </button>
+
+            </div>
+
+            <!-- PDF -->
+            <div>
+
+                <a href="?export=pdf&show_averages=1&month={{ selected_month }}&semester={{ selected_semester }}"
+                   class="block text-center bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-all">
+
+                    Export PDF
+
+                </a>
+
+            </div>
+
+        </form>
 
     </div>
 
@@ -131,19 +220,7 @@
     <!-- TABLEAU MOYENNES -->
     <!-- ========================= -->
 
-    {% if show_averages == '1' %}
-
-    <div class="p-4 sm:p-6 border-b border-gray-100 bg-white">
-
-        <div class="text-sm text-gray-600">
-            <span class="font-bold">
-                Tableau des moyennes étudiantes
-            </span>
-        </div>
-
-    </div>
-
-    <div class="overflow-x-auto border-t border-gray-100">
+    <div class="overflow-x-auto">
 
         <table class="w-full text-left">
 
@@ -160,7 +237,7 @@
                     </th>
 
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                        Moyenne Trimestrielle
+                        Moyenne Semestrielle
                     </th>
 
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -168,7 +245,7 @@
                     </th>
 
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                        Formations / Trimestre
+                        Formations / Semestre
                     </th>
 
                 </tr>
@@ -207,7 +284,7 @@
 
                     </td>
 
-                    <!-- MOYENNE MENSUELLE -->
+                    <!-- MOYENNE MOIS -->
                     <td class="px-6 py-5">
 
                         {% if row.avg_month_20 >= 10 %}
@@ -222,29 +299,29 @@
 
                     </td>
 
-                    <!-- MOYENNE TRIMESTRIELLE -->
+                    <!-- MOYENNE SEMESTRE -->
                     <td class="px-6 py-5">
 
-                        {% if row.avg_trim_20 >= 10 %}
+                        {% if row.avg_sem_20 >= 10 %}
                             <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-bold">
-                                {{ row.avg_trim_20|floatformat:1 }}/20
+                                {{ row.avg_sem_20|floatformat:1 }}/20
                             </span>
                         {% else %}
                             <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-bold">
-                                {{ row.avg_trim_20|floatformat:1 }}/20
+                                {{ row.avg_sem_20|floatformat:1 }}/20
                             </span>
                         {% endif %}
 
                     </td>
 
                     <!-- NB MOIS -->
-                    <td class="px-6 py-5 text-sm text-gray-700 font-semibold">
+                    <td class="px-6 py-5 text-sm font-semibold text-gray-700">
                         {{ row.cnt_month }}
                     </td>
 
-                    <!-- NB TRIM -->
-                    <td class="px-6 py-5 text-sm text-gray-700 font-semibold">
-                        {{ row.cnt_trim }}
+                    <!-- NB SEM -->
+                    <td class="px-6 py-5 text-sm font-semibold text-gray-700">
+                        {{ row.cnt_sem }}
                     </td>
 
                 </tr>
@@ -312,9 +389,8 @@
 
                 {% for result in recent_results %}
 
-                <tr class="hover:bg-gray-50/50 transition-all group">
+                <tr class="hover:bg-gray-50/50 transition-all">
 
-                    <!-- ETUDIANT -->
                     <td class="px-6 py-5">
 
                         <div class="flex items-center gap-3">
@@ -340,43 +416,35 @@
 
                     </td>
 
-                    <!-- COURS -->
                     <td class="px-6 py-5">
-
-                        <span class="font-medium text-charcoal">
-                            {{ result.formation.name }}
-                        </span>
-
+                        {{ result.formation.name }}
                     </td>
 
-                    <!-- SCORE -->
-                    <td class="px-6 py-5 font-mono text-sm font-bold text-charcoal">
+                    <td class="px-6 py-5 font-bold">
                         {{ result.score_20|floatformat:1 }}/20
                     </td>
 
-                    <!-- DATE -->
                     <td class="px-6 py-5 text-sm text-gray-600">
                         {{ result.date_soumission|date:"d/m/Y H:i"|default:"—" }}
                     </td>
 
-                    <!-- STATUT -->
                     <td class="px-6 py-5">
 
                         {% if result.display_statut == 1 %}
 
-                            <span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold border border-emerald-200">
+                            <span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold">
                                 ✅ Validé
                             </span>
 
                         {% elif result.display_statut == 0 %}
 
-                            <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold border border-red-200">
+                            <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">
                                 ❌ Échoué
                             </span>
 
                         {% else %}
 
-                            <span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold border border-amber-200">
+                            <span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
                                 ⏳ En cours
                             </span>
 
@@ -393,24 +461,7 @@
                     <td colspan="5"
                         class="px-6 py-16 text-center text-gray-500">
 
-                        <svg class="h-16 w-16 mx-auto text-gray-300 mb-4"
-                             fill="none"
-                             viewBox="0 0 24 24"
-                             stroke="currentColor">
-
-                            <path stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="1"
-                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">
-                            Aucun résultat
-                        </h3>
-
-                        <p>
-                            Aucun questionnaire soumis pour l'instant.
-                        </p>
+                        Aucun résultat trouvé.
 
                     </td>
 
@@ -427,18 +478,6 @@
     {% endif %}
 
 </div>
-
-<style>
-
-.success-green {
-    color: #10b981;
-}
-
-.danger-red {
-    color: #ef4444;
-}
-
-</style>
 
 {% endblock %}
 ```

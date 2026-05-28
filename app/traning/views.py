@@ -278,56 +278,134 @@ def admin_formation_detail(request, pk):
         'success_message': success_message
     })
 
+@login_required(login_url='/')
 def admin_results(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
 
-    # Logique d'exportation PDF avec filtres
-    if request.GET.get('export') == 'pdf':
-        from weasyprint import HTML
-        from django.template.loader import render_to_string
+    from django.utils import timezone
+    from django.db.models import Avg, Count
+    from django.http import HttpResponse
+    from weasyprint import HTML
+    from django.template.loader import render_to_string
 
-        filtre = request.GET.get('filtre', '')
-        only_with_avg = request.GET.get('only_with_avg', 'all')
-        show_averages = request.GET.get('show_averages', '0')
+    # =========================
+    # PARAMÈTRES
+    # =========================
 
-        all_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
+    filtre = request.GET.get('filtre', '')
+    only_with_avg = request.GET.get('only_with_avg', 'all')
+    show_averages = request.GET.get('show_averages', '0')
 
+    selected_month = int(
+        request.GET.get('month', timezone.now().month)
+    )
 
+    selected_semester = int(
+        request.GET.get('semester', 1)
+    )
 
-        if filtre == 'valide':
-            all_results = all_results.filter(statut=1)
-        elif filtre == 'echec':
-            all_results = all_results.filter(statut=0)
-        elif filtre == 'en_cours':
-            all_results = all_results.filter(statut=2)
+    # =========================
+    # LISTE DES MOIS
+    # =========================
 
-        for res in all_results:
-            res.score_20 = round(res.score * 0.2, 1)
+    months = [
+        {"value": 1, "label": "Janvier"},
+        {"value": 2, "label": "Février"},
+        {"value": 3, "label": "Mars"},
+        {"value": 4, "label": "Avril"},
+        {"value": 5, "label": "Mai"},
+        {"value": 6, "label": "Juin"},
+        {"value": 7, "label": "Juillet"},
+        {"value": 8, "label": "Août"},
+        {"value": 9, "label": "Septembre"},
+        {"value": 10, "label": "Octobre"},
+        {"value": 11, "label": "Novembre"},
+        {"value": 12, "label": "Décembre"},
+    ]
 
-        filtre_display = {
-            'valide': 'Validés',
-            'echec': 'Échecs',
-            'en_cours': 'En cours',
-        }.get(filtre, 'Tous')
+    # =========================
+    # DATE ACTUELLE
+    # =========================
 
-        html_string = render_to_string('admin/results_pdf.html', {
-            'results': all_results,
-            'generated_at': timezone.now(),
-            'filtre': filtre,
-            'filtre_display': filtre_display,
-            'only_with_avg': only_with_avg,
-            'show_averages': show_averages,
-        })
+    now = timezone.localtime(timezone.now())
 
+    # =========================
+    # MOIS CHOISI
+    # =========================
 
-        response = HttpResponse(content_type='application/pdf')
-        filename = f'resultats_formations_{filtre_display.lower().replace(" ", "_")}.pdf'
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        HTML(string=html_string).write_pdf(response)
-        return response
+    month_start = now.replace(
+        month=selected_month,
+        day=1,
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
 
-    total_users = CustomUser.objects.filter(role='serviteur').count()
+    if selected_month == 12:
+
+        next_month_start = month_start.replace(
+            year=month_start.year + 1,
+            month=1
+        )
+
+    else:
+
+        next_month_start = month_start.replace(
+            month=selected_month + 1
+        )
+
+    # =========================
+    # SEMESTRE CHOISI
+    # =========================
+
+    semestre = selected_semester
+
+    if semestre == 1:
+
+        sem_start = now.replace(
+            month=1,
+            day=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
+        sem_end = now.replace(
+            month=7,
+            day=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
+    else:
+
+        sem_start = now.replace(
+            month=7,
+            day=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
+        sem_end = now.replace(
+            year=now.year + 1,
+            month=1,
+            day=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
+    # =========================
+    # STATS
+    # =========================
 
     stats = {
         'valide': ServiteurFormation.objects.filter(statut=1).count(),
@@ -336,116 +414,357 @@ def admin_results(request):
         'total': ServiteurFormation.objects.count()
     }
 
-    filtre = request.GET.get('filtre', '')
+    # =========================
+    # RÉSULTATS RÉCENTS
+    # =========================
 
-    # 1) Derniers résultats (affichage tableau historique)
-    recent_results = ServiteurFormation.objects.select_related('serviteur', 'formation').order_by('-date_debut')
+    recent_results = (
+        ServiteurFormation.objects
+        .select_related('serviteur', 'formation')
+        .order_by('-date_debut')
+    )
+
     if filtre == 'valide':
         recent_results = recent_results.filter(statut=1)
+
     elif filtre == 'echec':
         recent_results = recent_results.filter(statut=0)
+
     elif filtre == 'en_cours':
         recent_results = recent_results.filter(statut=2)
 
     recent_results = recent_results[:50]
+
     for result in recent_results:
         result.score_20 = round(result.score * 0.2, 1)
         result.display_statut = result.statut
 
-    # 2) Moyennes mensuelles & semestrielles par étudiant (tous les étudiants)
-    now = timezone.localtime(timezone.now())
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    if now.month == 12:
-        next_month_start = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-    else:
-        next_month_start = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    # =========================
+    # BASE QUERYSET
+    # =========================
 
-    # Semestre courant : S1 (jan-jun) / S2 (jul-dec)
-    semestre = 1 if now.month <= 6 else 2
-    if semestre == 1:
-        sem_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-        sem_end = now.replace(month=7, day=1, hour=0, minute=0, second=0, microsecond=0)
-    else:
-        sem_start = now.replace(month=7, day=1, hour=0, minute=0, second=0, microsecond=0)
-        if now.month <= 12:
-            sem_end = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-        else:
-            sem_end = now.replace(year=now.year, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    base_qs = ServiteurFormation.objects.select_related(
+        'serviteur'
+    ).all()
 
-    # On calcule les agrégats sur ServiteurFormation, puis on map vers tous les serviteurs
-    base_qs = ServiteurFormation.objects.select_related('serviteur').all()
     if filtre == 'valide':
         base_qs = base_qs.filter(statut=1)
+
     elif filtre == 'echec':
         base_qs = base_qs.filter(statut=0)
+
     elif filtre == 'en_cours':
         base_qs = base_qs.filter(statut=2)
 
+    # =========================
+    # MOYENNES MENSUELLES
+    # =========================
+
     monthly = (
-        base_qs.filter(date_soumission__gte=month_start, date_soumission__lt=next_month_start)
+
+        base_qs.filter(
+            date_soumission__gte=month_start,
+            date_soumission__lt=next_month_start
+        )
+
         .values('serviteur_id')
-        .annotate(avg_month=Avg('score'))
-        .annotate(cnt_month=Count('id'))
+
+        .annotate(
+            avg_month=Avg('score')
+        )
+
+        .annotate(
+            cnt_month=Count('id')
+        )
+
     )
+
+    # =========================
+    # MOYENNES SEMESTRIELLES
+    # =========================
 
     semestrial = (
-        base_qs.filter(date_soumission__gte=sem_start, date_soumission__lt=sem_end)
+
+        base_qs.filter(
+            date_soumission__gte=sem_start,
+            date_soumission__lt=sem_end
+        )
+
         .values('serviteur_id')
-        .annotate(avg_sem=Avg('score'))
-        .annotate(cnt_sem=Count('id'))
+
+        .annotate(
+            avg_sem=Avg('score')
+        )
+
+        .annotate(
+            cnt_sem=Count('id')
+        )
+
     )
 
-    monthly_map = {row['serviteur_id']: row for row in monthly}
-    sem_map = {row['serviteur_id']: row for row in semestrial}
+    monthly_map = {
+        row['serviteur_id']: row
+        for row in monthly
+    }
 
-    serviteurs = list(CustomUser.objects.filter(role='serviteur').order_by('-date_joined'))
+    sem_map = {
+        row['serviteur_id']: row
+        for row in semestrial
+    }
+
+    # =========================
+    # ÉTUDIANTS
+    # =========================
+
+    serviteurs = list(
+
+        CustomUser.objects.filter(
+            role='serviteur'
+        ).order_by('-date_joined')
+
+    )
+
     results_by_student = []
+
     for s in serviteurs:
+
         m = monthly_map.get(s.id)
         sem = sem_map.get(s.id)
 
-        avg_month_score = (m['avg_month'] or 0) if m else 0
-        avg_sem_score = (sem['avg_sem'] or 0) if sem else 0
+        avg_month_score = (
+            (m['avg_month'] or 0)
+            if m else 0
+        )
+
+        avg_sem_score = (
+            (sem['avg_sem'] or 0)
+            if sem else 0
+        )
 
         results_by_student.append({
+
             'serviteur': s,
-            'avg_month_20': round(avg_month_score * 0.2, 1) if m else 0,
-            'cnt_month': m['cnt_month'] if m else 0,
-            'avg_sem_20': round(avg_sem_score * 0.2, 1) if sem else 0,
-            'cnt_sem': sem['cnt_sem'] if sem else 0,
+
+            'avg_month_20':
+                round(avg_month_score * 0.2, 1)
+                if m else 0,
+
+            'cnt_month':
+                m['cnt_month']
+                if m else 0,
+
+            'avg_sem_20':
+                round(avg_sem_score * 0.2, 1)
+                if sem else 0,
+
+            'cnt_sem':
+                sem['cnt_sem']
+                if sem else 0,
+
         })
 
-    # Trier : du plus fort au plus faible (principalement sur la moyenne mensuelle,
-    # sinon fallback sur semestrielle puis nom)
-    results_by_student.sort(key=lambda x: (x.get('avg_month_20', 0), x.get('avg_sem_20', 0), x['serviteur'].username), reverse=True)
+    # =========================
+    # TRI
+    # =========================
 
-    # Filtre optionnel (afficher seulement ceux qui ont une moyenne non nulle)
-    only_with_avg = request.GET.get('only_with_avg', 'all')
+    results_by_student.sort(
+
+        key=lambda x: (
+
+            x.get('avg_month_20', 0),
+
+            x.get('avg_sem_20', 0),
+
+            x['serviteur'].username
+
+        ),
+
+        reverse=True
+
+    )
+
+    # =========================
+    # FILTRE MOYENNES
+    # =========================
+
     if only_with_avg == 'month':
-        # Significatif : moyenne >= 10 (sur /20)
+
         results_by_student = [
+
             r for r in results_by_student
-            if (r.get('cnt_month', 0) or 0) > 0 and (r.get('avg_month_20', 0) or 0) >= 10
+
+            if (
+                (r.get('cnt_month', 0) or 0) > 0
+                and
+                (r.get('avg_month_20', 0) or 0) >= 10
+            )
+
         ]
+
     elif only_with_avg == 'sem':
+
         results_by_student = [
+
             r for r in results_by_student
-            if (r.get('cnt_sem', 0) or 0) > 0 and (r.get('avg_sem_20', 0) or 0) >= 10
+
+            if (
+                (r.get('cnt_sem', 0) or 0) > 0
+                and
+                (r.get('avg_sem_20', 0) or 0) >= 10
+            )
+
         ]
 
+    # =========================
+    # EXPORT PDF
+    # =========================
 
-    show_averages = request.GET.get('show_averages', '0')
+    if request.GET.get('export') == 'pdf':
 
-    return render(request, 'admin/results.html', {
-        'total_users': total_users,
-        'stats': stats,
-        'recent_results': recent_results,
-        'filtre': filtre,
-        'results_by_student': results_by_student,
-        'semestre': semestre,
-        'month_label': now.strftime('%B %Y').capitalize(),
-        'show_averages': show_averages,
-    })
+        # PDF MOYENNES
+        if show_averages == '1':
+
+            html_string = render_to_string(
+
+                'admin/moyennes_pdf.html',
+
+                {
+                    'results_by_student':
+                        results_by_student,
+
+                    'selected_month':
+                        selected_month,
+
+                    'selected_semester':
+                        selected_semester,
+
+                    'generated_at':
+                        timezone.now(),
+                }
+
+            )
+
+            response = HttpResponse(
+                content_type='application/pdf'
+            )
+
+            response['Content-Disposition'] = (
+                'attachment; filename="moyennes_etudiants.pdf"'
+            )
+
+            HTML(
+                string=html_string
+            ).write_pdf(response)
+
+            return response
+
+        # PDF RESULTATS
+        else:
+
+            all_results = (
+
+                ServiteurFormation.objects
+                .select_related(
+                    'serviteur',
+                    'formation'
+                )
+                .order_by('-date_debut')
+
+            )
+
+            if filtre == 'valide':
+                all_results = all_results.filter(statut=1)
+
+            elif filtre == 'echec':
+                all_results = all_results.filter(statut=0)
+
+            elif filtre == 'en_cours':
+                all_results = all_results.filter(statut=2)
+
+            for res in all_results:
+                res.score_20 = round(res.score * 0.2, 1)
+
+            filtre_display = {
+
+                'valide': 'Validés',
+
+                'echec': 'Échecs',
+
+                'en_cours': 'En cours',
+
+            }.get(filtre, 'Tous')
+
+            html_string = render_to_string(
+
+                'admin/results_pdf.html',
+
+                {
+                    'results': all_results,
+                    'generated_at': timezone.now(),
+                    'filtre': filtre,
+                    'filtre_display': filtre_display,
+                }
+
+            )
+
+            response = HttpResponse(
+                content_type='application/pdf'
+            )
+
+            filename = (
+                f'resultats_formations_'
+                f'{filtre_display.lower()}.pdf'
+            )
+
+            response['Content-Disposition'] = (
+                f'attachment; filename="{filename}"'
+            )
+
+            HTML(
+                string=html_string
+            ).write_pdf(response)
+
+            return response
+
+    # =========================
+    # TEMPLATE
+    # =========================
+
+    return render(
+
+        request,
+
+        'admin/results.html',
+
+        {
+            'total_users': CustomUser.objects.filter(
+                role='serviteur'
+            ).count(),
+
+            'stats': stats,
+
+            'recent_results': recent_results,
+
+            'filtre': filtre,
+
+            'results_by_student': results_by_student,
+
+            'semestre': semestre,
+
+            'month_label': month_start.strftime('%B %Y').capitalize(),
+
+            'show_averages': show_averages,
+
+            'months': months,
+
+            'selected_month': selected_month,
+
+            'selected_semester': selected_semester,
+
+            'only_with_avg': only_with_avg,
+        }
+    )
+
 
 
 
