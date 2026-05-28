@@ -204,13 +204,14 @@
             <div>
 
                 <a href="?export=pdf&show_averages=1&month={{ selected_month }}&semester={{ selected_semester }}"
-                   class="block text-center bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-xl transition-all">
+                   class="block text-center bg-indigo-700 hover:bg-indigo-800 text-white font-bold py-3 rounded-xl transition-all">
 
-                    Export PDF
+                    Export PDF — Moyennes
 
                 </a>
 
             </div>
+
 
         </form>
 
@@ -352,6 +353,43 @@
     <!-- ========================= -->
     <!-- TABLEAU RESULTATS -->
     <!-- ========================= -->
+
+    <!-- PDF (résultats) -->
+    <div class="p-4 sm:p-6 border-b border-gray-100 bg-gray-50">
+
+        <div class="flex flex-wrap items-center justify-between gap-3">
+
+            <div class="flex flex-wrap items-center gap-2">
+
+                <!-- TOUS -->
+                <a href="?export=pdf"
+                   class="block bg-gray-900 hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs sm:text-sm">
+                    Export PDF — Tous
+                </a>
+
+                <!-- VALIDÉ -->
+                <a href="?export=pdf&filtre=valide"
+                   class="block bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs sm:text-sm">
+                    Validés
+                </a>
+
+                <!-- ÉCHOUÉ -->
+                <a href="?export=pdf&filtre=echec"
+                   class="block bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs sm:text-sm">
+                    Échecs
+                </a>
+
+                <!-- EN COURS -->
+                <a href="?export=pdf&filtre=en_cours"
+                   class="block bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs sm:text-sm">
+                    En cours
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
 
     <div class="overflow-x-auto">
 
