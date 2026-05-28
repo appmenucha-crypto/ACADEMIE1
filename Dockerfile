@@ -1,4 +1,4 @@
-```dockerfile id="j5s8zr"
+
 # -------- Build stage --------
 FROM python:3.12-slim AS builder
 
@@ -43,4 +43,4 @@ RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
-```
+
