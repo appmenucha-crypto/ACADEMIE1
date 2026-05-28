@@ -119,10 +119,42 @@ def api_get_serviteur(request, pk):
 def admin_vertumetres(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
-    submissions = ServiteurVertumetre.objects.select_related('serviteur').order_by('-submitted_at')
+    submissions = (
+        ServiteurVertumetre.objects
+        .select_related('serviteur')
+        .filter(submitted_at__isnull=False)
+        .order_by('-submitted_at')
+    )
+    
+    # Stats pour graphes (7 derniers jours)
+    now = timezone.now()
+    start_7d = now - timedelta(days=7)
+    weekly_qs = (
+        ServiteurVertumetre.objects
+        .filter(submitted_at__isnull=False, submitted_at__gte=start_7d)
+        .extra(select={"day": "date(submitted_at)"})
+    )
+    submissions_per_day = {}
+    for s in weekly_qs:
+        day = s.submitted_at.date()
+        submissions_per_day[day] = submissions_per_day.get(day, 0) + 1
+
+    labels = []
+    data = []
+    for i in range(7):
+        day = (start_7d + timedelta(days=i)).date()
+        labels.append(day.strftime('%d/%m'))
+        data.append(submissions_per_day.get(day, 0))
+
+    submitted_count = submissions.count()
+
     return render(request, 'admin/vertumetres.html', {
-        'submissions': submissions
+        'submissions': submissions,
+        'submitted_count': submitted_count,
+        'vertumetre_labels': labels,
+        'vertumetre_data': data,
     })
+
 
 @login_required(login_url='/')
 def admin_courses(request):
