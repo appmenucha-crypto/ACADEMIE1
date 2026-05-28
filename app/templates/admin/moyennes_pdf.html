@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Moyennes Étudiants</title>
+    <style>
+        @page { size: A4; margin: 1.5cm; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; color: #333; }
+        h1 {
+            text-align: center;
+            color: #4f46e5;
+            font-size: 20pt;
+            border-bottom: 3px solid #4f46e5;
+            padding-bottom: 8pt;
+            margin-bottom: 4pt;
+        }
+        .date { text-align: center; font-size: 9pt; color: #666; margin-bottom: 16pt; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10pt; }
+        th { background-color: #4f46e5; color: white; padding: 8pt 6pt; text-align: left; font-size: 10pt; }
+        td { padding: 7pt 6pt; border-bottom: 1pt solid #eee; font-size: 10pt; vertical-align: top; }
+        tr:nth-child(even) td { background-color: #f9f9f9; }
+        .score-good { color: #059669; font-weight: bold; }
+        .score-bad { color: #dc2626; font-weight: bold; }
+        .footer { margin-top: 20pt; text-align: center; font-size: 8pt; color: #999; border-top: 1pt solid #eee; padding-top: 8pt; }
+        .muted { color: #666; font-size: 9pt; }
+    </style>
+</head>
+<body>
+<h1>Rapport des Moyennes Étudiants</h1>
+<p class="date">
+    Période : {{ selected_month }}/12 (Mois) — S{{ selected_semester }}<br>
+    Généré le {{ generated_at|date:"d/m/Y à H:i" }}
+</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Étudiant</th>
+            <th>Moyenne Mensuelle</th>
+            <th>Moyenne Semestrielle</th>
+            <th># Mois</th>
+            <th># Semestre</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in results_by_student %}
+            <tr>
+                <td>
+                    {{ row.serviteur.username }}<br>
+                    <span class="muted">{{ row.serviteur.first_name }} {{ row.serviteur.last_name|default:"" }}</span>
+                </td>
+                <td>
+                    {% if row.avg_month_20 >= 10 %}
+                        <span class="score-good">{{ row.avg_month_20|floatformat:1 }}/20</span>
+                    {% else %}
+                        <span class="score-bad">{{ row.avg_month_20|floatformat:1 }}/20</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.avg_sem_20 >= 10 %}
+                        <span class="score-good">{{ row.avg_sem_20|floatformat:1 }}/20</span>
+                    {% else %}
+                        <span class="score-bad">{{ row.avg_sem_20|floatformat:1 }}/20</span>
+                    {% endif %}
+                </td>
+                <td>{{ row.cnt_month }}</td>
+                <td>{{ row.cnt_sem }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="5" style="text-align:center; color:#999;">Aucun étudiant</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="footer">Formation VH — Système de suivi des formations</div>
+</body>
+</html>
+

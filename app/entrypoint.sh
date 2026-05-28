@@ -1,7 +1,10 @@
 #!/bin/bash
 
-mkdir -p /app/media
-chmod -R 777 /app/media
+# ------------------------------------------------------------ 
+# Création dossier media persistant 
+# ------------------------------------------------------------ 
+mkdir -p /data/media 
+chmod -R 777 /data/media
 
 
 set -e

@@ -1,3 +1,4 @@
+```dockerfile id="j5s8zr"
 # -------- Build stage --------
 FROM python:3.12-slim AS builder
 
@@ -27,12 +28,12 @@ WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 COPY app/ .
 
-RUN mkdir -p /app/media
-VOLUME ["/app/media"]
+# dossier media persistant
+RUN mkdir -p /data/media
+RUN chmod -R 777 /data/media
 
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONPATH=/app
-
 
 EXPOSE 8000
 
@@ -42,3 +43,4 @@ RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+```
