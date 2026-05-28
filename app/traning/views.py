@@ -14,6 +14,9 @@ from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, 
 from .forms import ServiteurForm, FormationCreationForm, VertumetreForm
 from .models_vertumetre import ServiteurVertumetre
 
+# Admin - Compte
+from .admin_account import admin_account
+
 @login_required(login_url='/')
 def admin_dashboard(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):

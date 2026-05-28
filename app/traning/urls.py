@@ -1,6 +1,8 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views, views_api
+from .admin_account import admin_account
+
 
 app_name = 'traning'
 
@@ -17,6 +19,7 @@ path('admin/courses/', views.admin_courses, name='admin_courses'),
     path('admin/questionnaires/', views.admin_questionnaires, name='admin_questionnaires'),
     path('admin/results/', views.admin_results, name='admin_results'),
     path('admin/vertumetres/', views.admin_vertumetres, name='admin_vertumetres'),
+    path('admin/compte/', admin_account, name='admin_account'),
     path('serviteur/dashboard/', views.serviteur_dashboard, name='serviteur_dashboard'),
     path('serviteur/formations/', views.serviteur_formations, name='serviteur_formations'),
     path('serviteur/formation/<int:pk>/', views.serviteur_formation_detail, name='serviteur_formation_detail'),
