@@ -131,7 +131,7 @@ class VertumetreForm(forms.ModelForm):
         widget=forms.RadioSelect
     )
     q3 = forms.ChoiceField(
-        label="2-Combien de temps durent vos méditations de la Parole de Dieu?",
+        label="3-Combien de temps durent vos méditations de la Parole de Dieu?",
         choices=[
             ('0', '0-15mn'),
             ('1', '15-30mn'),
@@ -141,7 +141,7 @@ class VertumetreForm(forms.ModelForm):
         widget=forms.RadioSelect
     )
     q4 = forms.ChoiceField(
-        label="3- Volume de lecture de la Bible",
+        label="4- Volume de lecture de la Bible",
         choices=[
             ('0', "Pas du tout (cette semaine)"),
             ('1', 'quelques versets'),
@@ -151,7 +151,7 @@ class VertumetreForm(forms.ModelForm):
         widget=forms.RadioSelect
     )
     q5 = forms.ChoiceField(
-        label="4- Suivez-vous un plan de lecture de la Bible?",
+        label="5- Suivez-vous un plan de lecture de la Bible?",
         choices=[
             ('0', 'Non'),
             ('1', 'De temps en temps'),
@@ -161,12 +161,12 @@ class VertumetreForm(forms.ModelForm):
         widget=forms.RadioSelect
     )
     q6 = forms.CharField(
-        label="5-Quel(s) enseignement(s) avez-vous écouté cette semaine?",
+        label="6-Quel(s) enseignement(s) avez-vous écouté cette semaine?",
         widget=forms.Textarea(attrs={'rows': 3}),
         required=False
     )
     q7 = forms.MultipleChoiceField(
-        label="6- Témoignage portant sur: (sélection multiple)",
+        label="7- Témoignage portant sur: (sélection multiple)",
         choices=[
             ('fruit', "Fruit de l'Esprit"),
             ('caractere', 'Caractère'),
@@ -182,7 +182,7 @@ class VertumetreForm(forms.ModelForm):
         widget=forms.CheckboxSelectMultiple
     )
     q8 = forms.ChoiceField(
-        label="7. En cas de besoin... demandé à DIEU?",
+        label="8. En cas de besoin... demandé à DIEU?",
         choices=[
             ('0', 'Cette situation ne s\'est pas appliquée à moi cette semaine'),
             ('1', 'Je n\'y arrive pas du tout'),
@@ -192,7 +192,7 @@ class VertumetreForm(forms.ModelForm):
         widget=forms.RadioSelect
     )
     q9 = forms.ChoiceField(
-        label="8.Est-ce que j'ai vraiment pris le temps pour reconnaitre mes erreurs et demander pardon?",
+        label="9.Est-ce que j'ai vraiment pris le temps pour reconnaitre mes erreurs et demander pardon?",
         choices=[
             ('0', 'Cette situation ne s\'est pas appliquée à moi cette semaine'),
             ('1', 'Je n\'y arrive pas du tout'),
@@ -202,7 +202,7 @@ class VertumetreForm(forms.ModelForm):
         widget=forms.RadioSelect
     )
     q10 = forms.ChoiceField(
-        label="9. Est-ce que je me suis sentie énervé(e)...",
+        label="10. Est-ce que je me suis sentie énervé(e)...",
         choices=[
             ('0', 'Cette situation ne s\'est pas appliquée à moi cette semaine'),
             ('1', 'Très souvent'),
@@ -212,7 +212,7 @@ class VertumetreForm(forms.ModelForm):
         widget=forms.RadioSelect
     )
     q11 = forms.ChoiceField(
-        label="10. Est-ce que j'ai fait chaque fois ce que j'ai dit...",
+        label="11. Est-ce que j'ai fait chaque fois ce que j'ai dit...",
         choices=[
             ('0', 'Cette situation ne s\'est pas appliquée à moi cette semaine'),
             ('1', 'Je n\'y arrive pas du tout'),
@@ -222,7 +222,7 @@ class VertumetreForm(forms.ModelForm):
         widget=forms.RadioSelect
     )
     q12 = forms.ChoiceField(
-        label="11. Est-ce que j'ai prié d'abord avant de faire toute chose?",
+        label="12. Est-ce que j'ai prié d'abord avant de faire toute chose?",
         choices=[
             ('0', 'Cette situation ne s\'est pas appliquée à moi cette semaine'),
             ('1', 'Je n\'y arrive pas du tout'),
