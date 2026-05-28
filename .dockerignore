@@ -8,6 +8,7 @@ __pycache__
 README.md
 Dockerfile*
 .dockerignore
+media/
 db.sqlite3
 venv/
 env/

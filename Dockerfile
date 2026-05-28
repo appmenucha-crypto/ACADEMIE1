@@ -27,8 +27,12 @@ WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 COPY app/ .
 
+RUN mkdir -p /app/media
+VOLUME ["/app/media"]
+
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONPATH=/app
+
 
 EXPOSE 8000
 
