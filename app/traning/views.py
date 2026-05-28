@@ -22,7 +22,8 @@ def admin_dashboard(request):
     serviteurs_count = CustomUser.objects.filter(role='serviteur').count()
     formations_count = Formation.objects.count()
     pending_actions = ServiteurFormation.objects.filter(statut=2).count()
-    vertumetre_count = ServiteurVertumetre.objects.count()
+    # Nombre de vertumètres réellement soumis (submitted_at rempli)
+    vertumetre_count = ServiteurVertumetre.objects.filter(submitted_at__isnull=False).count()
     
     # Graph data
     sf_stats = {
