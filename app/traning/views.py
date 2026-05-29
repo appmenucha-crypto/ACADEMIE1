@@ -946,35 +946,78 @@ def serviteur_questionnaire(request, pk):
         return redirect('traning:serviteur_dashboard')
     return render(request, 'serviteur/questionnaire.html', {'formation': formation, 'sf': sf})
 
+
+
+
 @login_required(login_url='/')
 def serviteur_vertumetre(request):
+
     if request.user.role != 'serviteur':
         return redirect('/')
 
-    vert, created = ServiteurVertumetre.objects.get_or_create(serviteur=request.user)
-    can_submit = vert.can_submit()
-    is_submitted = not can_submit and vert.submitted_at is not None
+    vert, created = ServiteurVertumetre.objects.get_or_create(
+        serviteur=request.user
+    )
 
+    # =========================
+    # Conversion JSON sécurisée
+    # =========================
+    if vert.answers:
+
+        # Si answers est une chaîne JSON
+        if isinstance(vert.answers, str):
+
+            try:
+                vert.answers = json.loads(vert.answers)
+
+            except Exception:
+                vert.answers = {}
+
+    can_submit = vert.can_submit()
+
+    is_submitted = (
+        not can_submit and
+        vert.submitted_at is not None
+    )
+
+    # =========================
+    # Soumission formulaire
+    # =========================
     if request.method == 'POST' and can_submit:
+
         form = VertumetreForm(request.POST)
+
         if form.is_valid():
+
             form.save(request.user)
+
             return redirect('traning:serviteur_vertumetre')
 
     else:
+
         form = VertumetreForm()
 
+    # =========================
+    # Context
+    # =========================
     context = {
         'vert': vert,
         'form': form,
         'can_submit': can_submit,
         'is_submitted': is_submitted,
         'submitted_at': vert.submitted_at,
-        'days_since_submit': (timezone.now() - vert.submitted_at).days if is_submitted else 0,
+        'days_since_submit': (
+            (timezone.now() - vert.submitted_at).days
+            if is_submitted else 0
+        ),
         'submissions_count': vert.submissions_count or 0,
     }
 
-    return render(request, 'serviteur/vertumetre.html', context)
+    return render(
+        request,
+        'serviteur/vertumetre.html',
+        context
+    )
 
 
 
