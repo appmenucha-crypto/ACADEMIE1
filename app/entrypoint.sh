@@ -3,8 +3,8 @@
 # ------------------------------------------------------------ 
 # Création dossier media persistant 
 # ------------------------------------------------------------ 
-mkdir -p /data/media 
-chmod -R 777 /data/media
+mkdir -p media
+chmod -R 777 media
 
 
 set -e

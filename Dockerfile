@@ -28,9 +28,10 @@ WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 COPY app/ .
 
-# dossier media persistant
-RUN mkdir -p /data/media
-RUN chmod -R 777 /data/media
+# dossier media
+RUN mkdir -p /app/media
+RUN chmod -R 777 /app/media
+
 
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONPATH=/app
