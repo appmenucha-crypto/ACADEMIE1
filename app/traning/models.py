@@ -78,7 +78,7 @@ class ServiteurFormation(models.Model):
     def save(self, *args, **kwargs):
         now = timezone.now()
         if self.date_debut and not self.date_limite:
-            self.date_limite = self.date_debut + timezone.timedelta(days=3)
+            self.date_limite = self.date_debut + timezone.timedelta(days=1)
         if self.date_soumission:  # questionnaire soumis
             self.statut = 1 if self.score >= 50 else 0
         elif self.date_limite and now > self.date_limite:  # délai dépassé sans soumission

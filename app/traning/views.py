@@ -893,12 +893,21 @@ def serviteur_formations(request):
 def serviteur_formation_detail(request, pk):
     if request.user.role != 'serviteur':
         return redirect('/')
+
     formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
+
     sf, created = ServiteurFormation.objects.get_or_create(
         serviteur=request.user,
         formation=formation,
         defaults={'date_debut': timezone.now()}
     )
+
+    # ✅ Si l'objet existait déjà mais sans date_debut, on démarre quand même le délai au clic.
+    if sf.date_debut is None:
+        sf.date_debut = timezone.now()
+        # date_limite sera recalculée dans save()
+        sf.save()
+
     score_20 = round(sf.score * 0.2, 1) if sf.score else 0
     return render(request, 'serviteur/formation_detail.html', {'formation': formation, 'sf': sf, 'score_20': score_20})
 
