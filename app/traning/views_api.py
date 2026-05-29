@@ -14,7 +14,13 @@ def api_serviteur_detail(request, pk):
             'last_name': serviteur.last_name,
             'email': serviteur.email,
             'phone_number': serviteur.phone_number,
-            'profile_photo': serviteur.profile_photo.url if serviteur.profile_photo else None,
+            # Avoid 500 if the file exists in DB but the underlying storage/file is missing
+            'profile_photo': (
+                (lambda u: u if isinstance(u, str) else None)(
+                    serviteur.profile_photo.url
+                ) if serviteur.profile_photo else None
+            ),
+
         }
         return JsonResponse(data)
     except CustomUser.DoesNotExist:

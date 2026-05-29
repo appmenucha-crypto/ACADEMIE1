@@ -93,8 +93,8 @@ DATABASES = {
         'NAME': 'formation_vh_db',
         'USER': 'esther',
         'PASSWORD': '123456',
-        'HOST': 'academievh-formationvhdb-ksxu1x', # Internal host
-        'PORT': '5432',  # Internal port
+        'HOST': 'localhost', # Internal host  academievh-formationvhdb-ksxu1x
+        'PORT': '5450',  # Internal port
     }
 }
 
@@ -157,6 +157,7 @@ LOGOUT_REDIRECT_URL = 'traning:login'
 
 CSRF_TRUSTED_ORIGINS = [
     "https://academie-vh.appliriki.com",
+    "http://127.0.0.1:8000",
 ]
 
 # Support for large file uploads
