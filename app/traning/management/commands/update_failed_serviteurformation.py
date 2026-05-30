@@ -7,14 +7,14 @@ from traning.models import ServiteurFormation
 
 
 class Command(BaseCommand):
-    help = "Marque en Échoué les formations 'En cours' après 1 jour sans soumission."
+    help = "Passe en Échoué les formations expirées sans soumission."
 
     def handle(self, *args, **options):
         now = timezone.now()
 
-        # 1) Si date_limite est NULL mais que date_debut existe, on la recalculera.
+        # Met à jour les date_limite manquantes (cas où date_limite est NULL en DB)
         formations = ServiteurFormation.objects.filter(
-            statut=2,
+            statut=2,  # En cours
             date_soumission__isnull=True,
             date_limite__isnull=True,
             date_debut__isnull=False,
@@ -24,19 +24,14 @@ class Command(BaseCommand):
             sf.date_limite = sf.date_debut + timedelta(days=1)
             sf.save(update_fields=["date_limite"])
 
-        # 2) Passe en échec toutes les formations expirées (date_limite recalculee ou existante)
-        expired_qs = ServiteurFormation.objects.filter(
+        # Passe en échec les formations expirées
+        updated = ServiteurFormation.objects.filter(
             statut=2,
             date_soumission__isnull=True,
             date_limite__lte=now,
-        )
-
-        # update en DB
-        updated = expired_qs.update(statut=0)
+        ).update(statut=0)
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Mise à jour effectuée : {updated} enregistrement(s) marqués Échoué."
-            )
+            self.style.SUCCESS(f"{updated} formation(s) marquée(s) Échoué.")
         )
 

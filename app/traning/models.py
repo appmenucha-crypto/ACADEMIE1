@@ -58,34 +58,49 @@ class VideoFile(models.Model):
     def __str__(self):
         return f"{self.bloc} - Vidéo {self.order}"
 
+from datetime import timedelta
+from django.db import models
+from django.utils import timezone
+
+
 class ServiteurFormation(models.Model):
     STATUT_CHOICES = [
         (0, 'Échoué'),
         (1, 'Validé'),
         (2, 'En cours'),
     ]
-    serviteur = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={'role': 'serviteur'})
+
+    serviteur = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        limit_choices_to={'role': 'serviteur'}
+    )
+
     formation = models.ForeignKey(Formation, on_delete=models.CASCADE)
+
     date_debut = models.DateTimeField(null=True, blank=True)
-    date_limite = models.DateTimeField(null=True, blank=True)  # deadline = debut + 3j
-    date_soumission = models.DateTimeField(null=True, blank=True)  # quand le serviteur soumet
-    score = models.IntegerField(default=0, help_text=_("Pourcentage /100"))
+    date_limite = models.DateTimeField(null=True, blank=True)
+    date_soumission = models.DateTimeField(null=True, blank=True)
+
+    score = models.IntegerField(default=0, help_text="Pourcentage /100")
     statut = models.IntegerField(choices=STATUT_CHOICES, default=2)
 
     class Meta:
         unique_together = ['serviteur', 'formation']
 
     def save(self, *args, **kwargs):
-        now = timezone.now()
+        # Définir la date limite à la création
         if self.date_debut and not self.date_limite:
-            self.date_limite = self.date_debut + timezone.timedelta(days=1)
-        if self.date_soumission:  # questionnaire soumis
+            self.date_limite = self.date_debut + timedelta(days=1)
+
+        # Si le questionnaire est soumis
+        if self.date_soumission:
             self.statut = 1 if self.score >= 50 else 0
-        elif self.date_limite and now > self.date_limite:  # délai dépassé sans soumission
-            self.statut = 0
-        else:
-            self.statut = 2  # en cours
+
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.serviteur} - {self.formation} (Statut: {self.get_statut_display()})"
+        return (
+            f"{self.serviteur} - {self.formation} "
+            f"(Statut: {self.get_statut_display()})"
+        )
