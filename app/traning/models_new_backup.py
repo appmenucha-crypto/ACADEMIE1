@@ -1,4 +1,7 @@
-## BACKUP of models_new.py - kept for reference
-from django.contrib.auth.models import AbstractUser
-... (full content of models_new.py as read previously)
+"""Backup de models_new.py (contenu conservé pour référence).
+
+Ce fichier ne doit pas être importé par Django.
+Il est volontairement vide pour éviter des erreurs de syntaxe/compilation.
+"""
+
 

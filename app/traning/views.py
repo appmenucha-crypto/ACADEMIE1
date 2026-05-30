@@ -342,6 +342,30 @@ def admin_results(request):
     )
 
     # =========================
+    # DATES PERSONNALISÉES (PÉRIODE SEMESTRE)
+    # =========================
+    # Permet à l'admin de définir une période manuellement au lieu du semestre 1/2 figé.
+    # Utilisation via GET : start_date=YYYY-MM-DD et end_date=YYYY-MM-DD
+    period_start_str = request.GET.get('start_date', '').strip()
+    period_end_str = request.GET.get('end_date', '').strip()
+
+    period_start = None
+    period_end = None
+
+    if period_start_str:
+        try:
+            period_start = timezone.datetime.fromisoformat(period_start_str)
+        except Exception:
+            period_start = None
+
+    if period_end_str:
+        try:
+            period_end = timezone.datetime.fromisoformat(period_end_str)
+        except Exception:
+            period_end = None
+
+
+    # =========================
     # LISTE DES MOIS
     # =========================
 
@@ -393,11 +417,12 @@ def admin_results(request):
         )
 
     # =========================
-    # SEMESTRE CHOISI
+    # SEMESTRE / PÉRIODE
     # =========================
 
     semestre = selected_semester
 
+    # Par défaut: calcul semestre 1/2 (figé comme avant)
     if semestre == 1:
 
         sem_start = now.replace(
@@ -438,6 +463,31 @@ def admin_results(request):
             second=0,
             microsecond=0
         )
+
+    # Si l'admin a fourni start_date/end_date, on remplace sem_start/sem_end.
+    # end_date est considéré comme date de fin incluse -> on passe en borne exclusive (+1 jour).
+    if period_start and period_end:
+        sem_start = period_start
+        sem_end = period_end + timezone.timedelta(days=1)
+    elif period_start:
+        sem_start = period_start
+    elif period_end:
+        sem_end = period_end + timezone.timedelta(days=1)
+
+    # Normalisation: s'assurer que les bornes ont des tz-aware datetime
+    # (si fromisoformat renvoie du naive, on suppose le fuseau courant).
+    if sem_start and timezone.is_naive(sem_start):
+        sem_start = timezone.make_aware(sem_start, timezone.get_current_timezone())
+
+    if sem_end and timezone.is_naive(sem_end):
+        sem_end = timezone.make_aware(sem_end, timezone.get_current_timezone())
+
+    # Sécurité: si l'intervalle est inversé, on conserve l'ordre.
+    if sem_start and sem_end and sem_end < sem_start:
+        sem_start, sem_end = sem_end, sem_start
+
+
+
 
     # =========================
     # STATS
@@ -908,8 +958,14 @@ def serviteur_formation_detail(request, pk):
         # date_limite sera recalculée dans save()
         sf.save()
 
+    # ✅ Mise à jour automatique: si la date limite est dépassée et aucune soumission
+    if sf.statut == 2 and sf.date_soumission is None and sf.date_limite and sf.date_limite <= timezone.now():
+        sf.statut = 0  # Échoué
+        sf.save(update_fields=["statut"])
+
     score_20 = round(sf.score * 0.2, 1) if sf.score else 0
     return render(request, 'serviteur/formation_detail.html', {'formation': formation, 'sf': sf, 'score_20': score_20})
+
 
 @login_required(login_url='/')
 def serviteur_questionnaire(request, pk):
