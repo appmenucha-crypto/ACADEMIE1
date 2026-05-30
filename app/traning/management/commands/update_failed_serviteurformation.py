@@ -21,7 +21,7 @@ class Command(BaseCommand):
         )
 
         for sf in formations.only("id", "date_debut"):
-            sf.date_limite = sf.date_debut + timedelta(days=1)
+            sf.date_limite = sf.date_debut + timedelta(days=3)
             sf.save(update_fields=["date_limite"])
 
         # Passe en échec les formations expirées

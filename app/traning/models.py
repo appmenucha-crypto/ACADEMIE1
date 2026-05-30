@@ -91,7 +91,7 @@ class ServiteurFormation(models.Model):
     def save(self, *args, **kwargs):
         # Définir la date limite à la création
         if self.date_debut and not self.date_limite:
-            self.date_limite = self.date_debut + timedelta(days=1)
+            self.date_limite = self.date_debut + timedelta(days=3)
 
         # Si le questionnaire est soumis
         if self.date_soumission:
