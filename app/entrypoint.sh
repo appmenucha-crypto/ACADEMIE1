@@ -3,8 +3,12 @@
 # ------------------------------------------------------------ 
 # Création dossier media persistant 
 # ------------------------------------------------------------ 
-mkdir -p media
-chmod -R 777 media
+mkdir -p /app/media
+mkdir -p /app/media/audios
+mkdir -p /app/media/videos
+mkdir -p /app/media/profile_photos
+
+chmod -R 777 /app/media
 
 
 set -e
