@@ -11,11 +11,16 @@ from django.utils import timezone
 from django.db import transaction
 from django.db.models import Count, Avg, Q
 from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile
+
 from .forms import ServiteurForm, FormationCreationForm, VertumetreForm
 from .models_vertumetre import ServiteurVertumetre
 
 # Admin - Compte
 from .admin_account import admin_account
+
+from django.template.loader import render_to_string
+from weasyprint import HTML
+
 
 @login_required(login_url='/')
 def admin_dashboard(request):
@@ -60,7 +65,20 @@ def admin_serviteurs(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
     
-    serviteurs = CustomUser.objects.filter(role='serviteur').order_by('-date_joined')
+    search_query = request.GET.get('q', '').strip()
+
+    serviteurs = CustomUser.objects.filter(role='serviteur')
+
+    if search_query:
+        serviteurs = serviteurs.filter(
+            Q(username__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+
+    serviteurs = serviteurs.order_by('-date_joined')
+
     
     serviteur_form = ServiteurForm()
     success_message = None
@@ -96,11 +114,27 @@ def admin_serviteurs(request):
             except CustomUser.DoesNotExist:
                 pass
 
+    if request.GET.get('export') == 'pdf':
+        serviteurs_list = list(serviteurs)
+        html_string = render_to_string(
+            'admin/serviteurs_pdf.html',
+            {
+                'serviteurs': serviteurs_list,
+                'generated_at': timezone.now(),
+            },
+            request=request,
+        )
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="liste_serviteurs.pdf"'
+        HTML(string=html_string).write_pdf(response)
+        return response
+
     return render(request, 'admin/serviteurs.html', {
         'serviteurs': serviteurs,
         'serviteur_form': serviteur_form,
         'success_message': success_message
     })
+
 
 @login_required(login_url='/')
 def api_get_serviteur(request, pk):

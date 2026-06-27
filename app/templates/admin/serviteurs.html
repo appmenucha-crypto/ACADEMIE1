@@ -14,7 +14,24 @@
 <div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
     <div class="flex items-center justify-between p-4 sm:p-6">
         <p class="text-sm text-gray-500">{{ serviteurs.count }} serviteur{{ serviteurs.count|pluralize }}</p>
+
+        <form method="get" class="flex-1 max-w-md hidden sm:block" style="margin:0 1rem;">
+            <div class="flex items-center gap-2">
+                <input type="text" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Rechercher par nom..." class="w-full bg-white/70 border border-gray-100 rounded-xl px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-blue/40">
+                <button type="submit" class="px-4 py-2 rounded-xl bg-accent-blue hover:bg-blue-600 text-white font-bold text-sm">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+
+
+        <a href="?export=pdf{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-charcoal font-bold text-sm border border-gray-200 shadow-sm transition-all">
+            <i class="fas fa-file-pdf"></i>
+            Export PDF
+        </a>
+
         <button onclick="openModal('addModal')" class="bg-accent-gold hover:bg-yellow-600 text-gray-900 px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition-all hover:scale-105">
+
             <i class="fas fa-plus"></i>
             <span class="hidden sm:inline">Nouveau Serviteur</span>
             <span class="sm:hidden">Ajouter</span>
