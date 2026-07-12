@@ -18,17 +18,30 @@
         <form method="get" class="flex-1 max-w-md hidden sm:block" style="margin:0 1rem;">
             <div class="flex items-center gap-2">
                 <input type="text" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Rechercher par nom..." class="w-full bg-white/70 border border-gray-100 rounded-xl px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-blue/40">
+
+                <select name="departement" class="bg-white/70 border border-gray-100 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-accent-blue/40">
+                    <option value="" {% if not request.GET.departement %}selected{% endif %}>Tous départements</option>
+
+                    {% for dep in departements %}
+                        <option value="{{ dep.id }}" {% if selected_departement_id|stringformat:'s' == dep.id|stringformat:'s' %}selected{% endif %}>
+                            {{ dep.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+
                 <button type="submit" class="px-4 py-2 rounded-xl bg-accent-blue hover:bg-blue-600 text-white font-bold text-sm">
                     <i class="fas fa-search"></i>
                 </button>
             </div>
         </form>
 
-
-        <a href="?export=pdf{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-charcoal font-bold text-sm border border-gray-200 shadow-sm transition-all">
+        <a href="?export=pdf{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.departement %}&departement={{ request.GET.departement }}{% endif %}" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-charcoal font-bold text-sm border border-gray-200 shadow-sm transition-all">
             <i class="fas fa-file-pdf"></i>
             Export PDF
         </a>
+
+
 
         <button onclick="openModal('addModal')" class="bg-accent-gold hover:bg-yellow-600 text-gray-900 px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition-all hover:scale-105">
 
@@ -60,9 +73,9 @@
                     {{ serviteur.is_active|yesno:'Actif,Désactivé' }}
                 </span>
             </div>
-            <div class="flex items-center justify-between">
-                <div class="text-xs text-gray-500 truncate flex-1 mr-2">{{ serviteur.email|default:"—" }}</div>
-                <div class="flex gap-1">
+                <div class="flex items-center justify-between">
+                    <div class="text-xs text-gray-500 truncate flex-1 mr-2">{{ serviteur.departement.name|default:"—" }}</div>
+                    <div class="flex gap-1">
                     <button onclick="openModal('editModal', {{ serviteur.pk }}); setTimeout(() => loadServiteurData({{ serviteur.pk }}), 100);" class="p-2 text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-all">
                         <i class="fas fa-edit text-sm"></i>
                     </button>
@@ -91,7 +104,7 @@
                 <tr class="bg-gray-50/50 border-b border-gray-100">
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider w-16">Photo</th>
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Nom / Username</th>
-                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Email</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Département</th>
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Téléphone</th>
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
                 </tr>
@@ -114,7 +127,7 @@
                         <span class="font-semibold text-charcoal block text-sm">{{ serviteur.first_name }} {{ serviteur.last_name }}</span>
                         <span class="text-xs text-gray-500">@{{ serviteur.username }}</span>
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-600">{{ serviteur.email|default:"—" }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ serviteur.departement.name|default:"—" }}</td>
                     <td class="px-6 py-4 hidden md:table-cell">
                         <span class="text-sm font-mono bg-gray-50 px-3 py-1 rounded-full">{{ serviteur.phone_number|default:"—" }}</span>
                     </td>
@@ -139,6 +152,7 @@
                 {% empty %}
                 <tr>
                     <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+
                         <i class="fas fa-users-slash text-4xl text-gray-300 mb-4 block"></i>
                         Aucun serviteur. <button onclick="openModal('addModal')" class="font-semibold text-accent-blue hover:underline">Créer le premier !</button>
                     </td>
@@ -251,7 +265,7 @@ function loadServiteurData(pk) {
         .then(data => {
             if (data.error) return;
             const editForm = document.getElementById('editForm');
-            const fields = ['username', 'first_name', 'last_name', 'email', 'phone_number'];
+            const fields = ['username', 'first_name', 'last_name', 'phone_number', 'departement'];
             fields.forEach(field => {
                 const input = editForm.querySelector(`[name="${field}"]`);
                 if (input) input.value = data[field] || '';

@@ -59,6 +59,29 @@
         <!-- FILTRES -->
         <div class="flex flex-wrap items-center gap-2">
 
+            <form method="get" class="flex flex-wrap items-center gap-2" style="margin:0;">
+                <select name="departement" class="bg-white rounded-xl border border-gray-100 px-3 py-2 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-accent-blue/40">
+                    <option value="" {% if not selected_departement_id %}selected{% endif %}>Tous départements</option>
+                    {% if departements %}
+                        {% for dep in departements %}
+                            <option value="{{ dep.id }}" {% if selected_departement_id|stringformat:'s' == dep.id|stringformat:'s' %}selected{% endif %}>{{ dep.name }}</option>
+                        {% endfor %}
+                    {% endif %}
+
+                </select>
+                {% if filtre %}<input type="hidden" name="filtre" value="{{ filtre }}">{% endif %}
+                {% if show_averages %}<input type="hidden" name="show_averages" value="{{ show_averages }}">{% endif %}
+                {% if only_with_avg %}<input type="hidden" name="only_with_avg" value="{{ only_with_avg }}">{% endif %}
+                {% if request.GET.month %}<input type="hidden" name="month" value="{{ request.GET.month }}">{% endif %}
+                {% if request.GET.semester %}<input type="hidden" name="semester" value="{{ request.GET.semester }}">{% endif %}
+                {% if request.GET.start_date %}<input type="hidden" name="start_date" value="{{ request.GET.start_date }}">{% endif %}
+                {% if request.GET.end_date %}<input type="hidden" name="end_date" value="{{ request.GET.end_date }}">{% endif %}
+                <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700">
+                    Filtrer
+                </button>
+            </form>
+
+
             <!-- TOUS -->
             <a href="?"
                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all
@@ -416,8 +439,13 @@
                     </th>
 
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        Département
+                    </th>
+
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
                         Cours
                     </th>
+
 
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
                         Score /20
@@ -467,8 +495,13 @@ Dates
                     </td>
 
                     <td class="px-6 py-5">
+                        {{ result.serviteur.departement.name|default:"—" }}
+                    </td>
+
+                    <td class="px-6 py-5">
                         {{ result.formation.name }}
                     </td>
+
 
                     <td class="px-6 py-5 font-bold">
                         {{ result.score_20|floatformat:1 }}/20
@@ -511,10 +544,11 @@ Dates
 
                 <tr>
 
-                    <td colspan="5"
+                    <td colspan="6"
                         class="px-6 py-16 text-center text-gray-500">
 
                         Aucun résultat trouvé.
+
 
                     </td>
 

@@ -4,15 +4,33 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 import json
 
+class Departement(models.Model):
+    name = models.CharField(max_length=120, unique=True, verbose_name=_("Département"))
+
+    def __str__(self):
+        return self.name
+
+
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
         ('admin', 'Administrateur'),
         ('serviteur', 'Serviteur'),
     ]
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='serviteur')
+
+    departement = models.ForeignKey(
+        Departement,
+        on_delete=models.SET_NULL,
+        related_name='serviteurs',
+        blank=True,
+        null=True,
+        verbose_name=_("Département"),
+    )
+
     phone_number = models.CharField(max_length=15, blank=True, null=True, verbose_name=_("Numéro de téléphone"))
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True, verbose_name=_("Photo de profil"))
     is_active = models.BooleanField(default=True, verbose_name=_("Actif"))
+
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.role})"

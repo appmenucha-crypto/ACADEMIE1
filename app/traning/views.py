@@ -10,7 +10,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Count, Avg, Q
-from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile
+from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile, Departement
 
 from .forms import ServiteurForm, FormationCreationForm, VertumetreForm
 from .models_vertumetre import ServiteurVertumetre
@@ -64,10 +64,19 @@ def admin_dashboard(request):
 def admin_serviteurs(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
-    
+
     search_query = request.GET.get('q', '').strip()
+    departement_id = request.GET.get('departement', '').strip()
 
     serviteurs = CustomUser.objects.filter(role='serviteur')
+
+    if departement_id:
+        # Robustesse: ne pas casser si departement_id est invalide
+        try:
+            serviteurs = serviteurs.filter(departement_id=int(departement_id))
+        except (TypeError, ValueError):
+            serviteurs = serviteurs.none()
+
 
     if search_query:
         serviteurs = serviteurs.filter(
@@ -79,9 +88,42 @@ def admin_serviteurs(request):
 
     serviteurs = serviteurs.order_by('-date_joined')
 
-    
     serviteur_form = ServiteurForm()
     success_message = None
+
+    # Forcer le queryset du champ FK departement pour que la liste existe aussi
+    # dans le formulaire de création/modification (modal).
+    departements_order = [
+        "PORTIERS",
+        "BLOOM",
+        "LOGISTIQUE",
+        "EVANGELISATION",
+        "SOCIAL",
+        "ECODIM",
+        "COMMUNICATION",
+        "ELEEO",
+        "ADN",
+        "GESTION DE CULTE",
+        "EDEN 1",
+        "MUSIQUE",
+        "SAINTE CENE",
+        "BAPTEME",
+        "ADA",
+        "MRES",
+        "INTERCESSION",
+    ]
+
+    departements_qs = Departement.objects.all()
+    departements_map = {str(d.name).strip().upper(): d for d in departements_qs}
+    ordered = [departements_map[name] for name in departements_order if name in departements_map]
+    ordered_ids = [d.id for d in ordered]
+    if ordered_ids:
+        departements_qs = Departement.objects.filter(id__in=ordered_ids)
+
+    if 'departement' in serviteur_form.fields:
+        serviteur_form.fields['departement'].queryset = departements_qs
+
+
     
     if request.method == 'POST':
         if 'create' in request.POST:
@@ -124,15 +166,53 @@ def admin_serviteurs(request):
             },
             request=request,
         )
+
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="liste_serviteurs.pdf"'
         HTML(string=html_string).write_pdf(response)
         return response
 
+    # Liste de départements (affichage fixe demandé par l’équipe)
+    departements_order = [
+        "PORTIERS",
+        "BLOOM",
+        "LOGISTIQUE",
+        "EVANGELISATION",
+        "SOCIAL",
+        "ECODIM",
+        "COMMUNICATION",
+        "ELEEO",
+        "ADN",
+        "GESTION DE CULTE",
+        "EDEN 1",
+        "MUSIQUE",
+        "SAINTE CENE",
+        "BAPTEME",
+        "ADA",
+        "MRES",
+        "INTERCESSION",
+    ]
+
+    # On récupère ce qui existe en base, puis on applique l’ordre demandé.
+    departements = list(Departement.objects.all())
+    departements_map = {str(d.name).strip().upper(): d for d in departements}
+    departements = [
+        departements_map[name] for name in departements_order
+        if name in departements_map
+    ]
+
+    # Fallback : si aucun département correspondant n’existe encore en base,
+    # on affiche tous les départements (cas de déploiement initial).
+    if not departements:
+        departements = Departement.objects.all().order_by('name')
+
+
     return render(request, 'admin/serviteurs.html', {
         'serviteurs': serviteurs,
         'serviteur_form': serviteur_form,
-        'success_message': success_message
+        'success_message': success_message,
+        'departements': departements,
+        'selected_departement_id': departement_id,
     })
 
 
@@ -367,7 +447,14 @@ def admin_results(request):
     only_with_avg = request.GET.get('only_with_avg', 'all')
     show_averages = request.GET.get('show_averages', '0')
 
+    departement_id = request.GET.get('departement', '').strip()
+
+    # Départements pour le filtre UI
+    departements = list(Departement.objects.all().order_by('name'))
+    selected_departement_id = departement_id
+
     selected_month = int(
+
         request.GET.get('month', timezone.now().month)
     )
 
@@ -544,6 +631,15 @@ def admin_results(request):
         .order_by('-date_debut')
     )
 
+    # Filtre département (admin/results)
+    if departement_id:
+        try:
+            departement_pk = int(departement_id)
+            recent_results = recent_results.filter(serviteur__departement_id=departement_pk)
+        except (TypeError, ValueError):
+            recent_results = recent_results.none()
+
+
     if filtre == 'valide':
         recent_results = recent_results.filter(statut=1)
 
@@ -566,6 +662,15 @@ def admin_results(request):
     base_qs = ServiteurFormation.objects.select_related(
         'serviteur'
     ).all()
+
+    # Filtre département pour les stats / moyennes
+    if departement_id:
+        try:
+            departement_pk = int(departement_id)
+            base_qs = base_qs.filter(serviteur__departement_id=departement_pk)
+        except (TypeError, ValueError):
+            base_qs = base_qs.none()
+
 
     if filtre == 'valide':
         base_qs = base_qs.filter(statut=1)
@@ -882,6 +987,10 @@ def admin_results(request):
             'selected_semester': selected_semester,
 
             'only_with_avg': only_with_avg,
+
+            # ✅ nécessaire pour remplir le select département
+            'departements': departements,
+            'selected_departement_id': selected_departement_id,
         }
     )
 
@@ -1127,22 +1236,36 @@ def logout_view(request):
 
 def login_view(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        username = (request.POST.get('username') or '').strip()
+        password = request.POST.get('password') or ''
 
-        user = authenticate(request, username=username, password=password)
+        # Sécurise les POST incomplets (évite des exceptions/500)
+        if not username or not password:
+            return render(request, 'login.html', {'login_error': True})
+
+        try:
+            user = authenticate(request, username=username, password=password)
+        except Exception:
+            # Ne pas révéler l'erreur interne au client
+            return render(request, 'login.html', {'login_error': True})
 
         if user is not None:
-            login(request, user)
+            try:
+                login(request, user)
+            except Exception:
+                return render(request, 'login.html', {'login_error': True})
 
             # ✅ ADMIN
             if user.is_superuser or getattr(user, 'role', None) == 'admin':
                 return redirect('traning:admin_dashboard')
 
             # ✅ ÉTUDIANT (SERVITEUR)
-            elif getattr(user, 'role', None) == 'serviteur':
+            if getattr(user, 'role', None) == 'serviteur':
                 return redirect('traning:serviteur_dashboard')
 
             return render(request, 'login.html', {'login_error': True})
 
+        return render(request, 'login.html', {'login_error': True})
+
     return render(request, 'login.html')
+

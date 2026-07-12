@@ -39,12 +39,13 @@ class ServiteurForm(forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        fields = ['username', 'first_name', 'last_name', 'email', 'phone_number', 'profile_photo', 'password']
+        fields = ['username', 'first_name', 'last_name', 'email', 'departement', 'phone_number', 'profile_photo', 'password']
         labels = {
             'username': "Nom d'utilisateur",
             'first_name': "Prénom",
             'last_name': "Nom de famille",
             'email': "Adresse e-mail",
+            'departement': "Département",
             'phone_number': "Numéro de téléphone",
             'profile_photo': "Photo de profil",
         }
@@ -52,6 +53,7 @@ class ServiteurForm(forms.ModelForm):
             'phone_number': forms.TextInput(attrs={'placeholder': '+33 6 12 34 56 78'}),
             'email': forms.EmailInput(attrs={'placeholder': 'serviteur@example.com'}),
         }
+    
     
     def save(self, commit=True):
         user = super().save(commit=False)

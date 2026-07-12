@@ -28,9 +28,8 @@
       <tr>
         <th>Nom</th>
         <th>Username</th>
-        <th>Email</th>
         <th>Téléphone</th>
-        <th>Statut</th>
+        <th>Département</th>
       </tr>
     </thead>
     <tbody>
@@ -38,15 +37,8 @@
       <tr>
         <td>{{ s.first_name }} {{ s.last_name }}<div class="small">Role: {{ s.role }}</div></td>
         <td>{{ s.username }}</td>
-        <td>{{ s.email|default:"—" }}</td>
         <td>{{ s.phone_number|default:"—" }}</td>
-        <td>
-          {% if s.is_active %}
-            <span class="tag tag-active">Actif</span>
-          {% else %}
-            <span class="tag tag-inactive">Désactivé</span>
-          {% endif %}
-        </td>
+        <td>{{ s.departement.name|default:"—" }}</td>
       </tr>
       {% empty %}
       <tr>
