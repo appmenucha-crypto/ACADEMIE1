@@ -4,51 +4,120 @@
   <meta charset="UTF-8">
   <title>Liste des Serviteurs</title>
   <style>
-    @page { size: A4; margin: 1.5cm; }
-    body { font-family: Arial, sans-serif; font-size: 11pt; color: #333; }
-    h1 { text-align: center; color: #10B981; font-size: 20pt; border-bottom: 3px solid #10B981; padding-bottom: 8pt; margin-bottom: 6pt; }
-    .meta { text-align: center; font-size: 9pt; color: #666; margin-bottom: 14pt; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
-    th { background-color: #10B981; color: white; padding: 8pt 6pt; text-align: left; font-size: 10pt; }
-    td { padding: 7pt 6pt; border-bottom: 1pt solid #eee; font-size: 10pt; vertical-align: top; }
-    tr:nth-child(even) td { background-color: #f9f9f9; }
-    .small { font-size: 9pt; color: #666; }
-    .tag { display:inline-block; padding: 2pt 6pt; border-radius: 10pt; font-weight: bold; font-size: 9pt; }
-    .tag-active { color: #059669; background: #D1FAE5; }
-    .tag-inactive { color: #DC2626; background: #FEE2E2; }
-    .footer { margin-top: 20pt; text-align: center; font-size: 8pt; color: #999; border-top: 1pt solid #eee; padding-top: 8pt; }
+    @page { size: A4; margin: 1.6cm; }
+    @page :first {
+      @top-center {
+        content: url("/media/Logo.png");
+        width: 60px;
+        height: auto;
+      }
+    }
+    @bottom-center {
+      content: "Page " counter(page) " / " counter(pages);
+      font-family: Arial, sans-serif;
+      font-size: 8pt;
+      color: #999;
+    }
+    body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #2C3E50; }
+    .header { text-align: center; margin-bottom: 14pt; }
+    .header h1 {
+      font-size: 20pt;
+      color: #0F766D;
+      margin: 0 0 4pt 0;
+      letter-spacing: 0.5px;
+    }
+    .header .sub { font-size: 9.5pt; color: #6B7280; }
+    .meta {
+      text-align: center;
+      font-size: 8.5pt;
+      color: #9CA3AF;
+      margin-bottom: 14pt;
+      border-bottom: 1px solid #E5E7EB;
+      padding-bottom: 8pt;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 4pt; }
+    th {
+      background-color: #0F766D;
+      color: #FFFFFF;
+      padding: 8pt 7pt;
+      text-align: left;
+      font-size: 9.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    td { padding: 7pt 7pt; border-bottom: 1pt solid #E5E7EB; font-size: 10pt; vertical-align: middle; }
+    tr:nth-child(even) td { background-color: #F9FAFB; }
+    tr:hover td { background-color: #ECFDF5; }
+    .small { font-size: 8.5pt; color: #6B7280; }
+    .tag {
+      display: inline-block;
+      padding: 3pt 9pt;
+      border-radius: 20pt;
+      font-weight: 700;
+      font-size: 8.5pt;
+      letter-spacing: 0.3px;
+    }
+    .tag-active { color: #065F46; background: #D1FAE5; }
+    .tag-inactive { color: #B91C1C; background: #FEE2E2; }
+    .footer {
+      margin-top: 18pt;
+      text-align: center;
+      font-size: 8pt;
+      color: #9CA3AF;
+      border-top: 1px solid #E5E7EB;
+      padding-top: 8pt;
+    }
+    .photo-cell { width: 48px; }
+    .photo-cell img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #E5E7EB; }
   </style>
 </head>
 <body>
-  <h1>Liste des Serviteurs</h1>
-  <p class="meta">Généré le {{ generated_at|date:"d/m/Y à H:i" }}</p>
+  <div class="header">
+    <h1>Liste des Serviteurs</h1>
+    <div class="sub">Académie Vase d'Honneur — Administration</div>
+  </div>
+  <p class="meta">Généré le {{ generated_at|date:"d/m/Y à H:i" }} — {{ serviteurs|length }} serviteur{{ serviteurs|length|pluralize }}</p>
 
   <table>
     <thead>
       <tr>
+        <th class="photo-cell">Photo</th>
         <th>Nom</th>
         <th>Username</th>
         <th>Téléphone</th>
         <th>Département</th>
+        <th>Statut</th>
       </tr>
     </thead>
     <tbody>
       {% for s in serviteurs %}
       <tr>
+        <td>
+          {% if s.profile_photo %}
+            <img src="{{ s.profile_photo.url }}" alt="">
+          {% else %}
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11pt;">{{ s.first_name|slice:":1"|upper }}{{ s.last_name|slice:":1"|upper }}</div>
+          {% endif %}
+        </td>
         <td>{{ s.first_name }} {{ s.last_name }}<div class="small">Role: {{ s.role }}</div></td>
         <td>{{ s.username }}</td>
         <td>{{ s.phone_number|default:"—" }}</td>
         <td>{{ s.departement.name|default:"—" }}</td>
+        <td>
+          <span class="tag {% if s.is_active %}tag-active{% else %}tag-inactive{% endif %}">
+            {% if s.is_active %}Actif{% else %}Désactivé{% endif %}
+          </span>
+        </td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="5" style="text-align:center; color:#999;">Aucun serviteur</td>
+        <td colspan="6" style="text-align:center; color:#999; padding:18pt;">Aucun serviteur</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <div class="footer">Formation VH — Administration</div>
+  <div class="footer">Formation VH — Tous droits réservés</div>
 </body>
 </html>
-

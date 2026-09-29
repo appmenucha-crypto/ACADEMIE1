@@ -28,10 +28,20 @@ class VideoInline(admin.TabularInline):
 
 @admin.register(Formation)
 class FormationAdmin(admin.ModelAdmin):
-    list_display = ('name', 'created_at')
+    list_display = ('name', 'created_at', 'has_html_questionnaire', 'has_json_questionnaire')
     list_filter = ('created_at',)
     search_fields = ('name',)
     inlines = [BlocInline]
+
+    @admin.display(boolean=True, ordering='questionnaire_html')
+    def has_html_questionnaire(self, obj):
+        return bool(obj.questionnaire_html)
+    has_html_questionnaire.short_description = "QCM HTML importé"
+
+    @admin.display(boolean=True, ordering='questionnaire_json')
+    def has_json_questionnaire(self, obj):
+        return bool(obj.questionnaire_json)
+    has_json_questionnaire.short_description = "QCM JSON"
 
 @admin.register(Bloc)
 class BlocAdmin(admin.ModelAdmin):
@@ -54,9 +64,15 @@ class VideoFileAdmin(admin.ModelAdmin):
 
 @admin.register(ServiteurFormation)
 class ServiteurFormationAdmin(admin.ModelAdmin):
-    list_display = ('serviteur', 'formation', 'score', 'statut', 'date_debut', 'date_soumission')
+    list_display = ('serviteur', 'formation', 'score', 'statut', 'date_debut', 'date_soumission', 'has_html_responses')
     list_filter = ('statut', 'formation', 'date_debut')
     search_fields = ('serviteur__username', 'formation__name')
+    readonly_fields = ('html_responses',)
+
+    @admin.display(boolean=True)
+    def has_html_responses(self, obj):
+        return bool(obj.html_responses)
+    has_html_responses.short_description = "Réponses HTML"
 
 from .models_vertumetre import ServiteurVertumetre
 

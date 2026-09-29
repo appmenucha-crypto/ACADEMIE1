@@ -1,0 +1,110 @@
+{% extends 'serviteur/base.html' %}
+
+{% block page_title %}Questionnaire - {{ formation.name }}{% endblock %}
+{% block subtitle %}{% if is_completed %}Résultat du questionnaire{% else %}Questionnaire à compléter{% endif %} - {{ formation.name }}{% endblock %}
+
+{% block serviteur_content %}
+<div class="glass-panel p-4 sm:p-8 rounded-3xl max-w-4xl mx-auto">
+    {% if is_completed %}
+    <div class="text-center py-16">
+        <i class="fas fa-check-circle text-6xl sm:text-8xl text-emerald-500 mb-8"></i>
+        <h1 class="text-3xl sm:text-4xl font-bold text-charcoal mb-4">{{ formation.name }}</h1>
+        <p class="text-xl text-gray-600 mb-8">Questionnaire déjà soumis !</p>
+        <div class="bg-gradient-to-r from-emerald-400 to-emerald-500 text-white px-12 py-6 rounded-3xl font-bold text-3xl shadow-2xl mb-8">
+            {{ score_20|floatformat:1 }}/20
+        </div>
+        <a href="{% url 'traning:serviteur_formations' %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-8 py-4 rounded-xl font-semibold flex items-center gap-2 mx-auto transition-all">
+            <i class="fas fa-list"></i> Voir toutes les formations
+        </a>
+    </div>
+    {% else %}
+    <div class="text-center mb-8">
+        <i class="fas fa-file-import text-5xl sm:text-6xl text-accent-blue mb-6"></i>
+        <h1 class="text-3xl sm:text-4xl font-bold text-charcoal mb-4">{{ formation.name }}</h1>
+        <p class="text-lg sm:text-xl text-gray-600">Questionnaire - complétez le formulaire ci-dessous</p>
+    </div>
+
+    <div id="html-questionnaire-wrapper" class="prose prose-lg max-w-none">
+        {{ formation.questionnaire_html|safe }}
+    </div>
+
+    <div id="html-fallback-submit" class="hidden mt-8">
+        <div class="flex justify-center">
+            <button type="button" id="html-submit-btn" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-8 py-4 rounded-3xl font-bold text-lg shadow-2xl transition-all flex items-center justify-center gap-3">
+                <i class="fas fa-paper-plane"></i>Envoyer mes réponses
+            </button>
+        </div>
+    </div>
+
+    <div id="html-instructions" class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-2xl">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-info-circle text-accent-blue mt-0.5"></i>
+            <p class="text-sm text-gray-600">
+                Le questionnaire ci-dessus provient d'un fichier HTML importé.
+                Une fois terminé, cliquez sur le bouton de soumission du formulaire (ou utilisez le bouton ci-dessous s'aucun n'apparaît).
+            </p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const is_completed = {{ is_completed|yesno:"true,false" }};
+    if (is_completed) return;
+
+    const getCookie = (name) => {
+        const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{+}\\()\\[\\]^\\x00-x20\\x7f]/g, '\\$&') + '=([^;]*)'));
+        return m ? decodeURIComponent(m[1]) : null;
+    };
+
+    const csrf = getCookie('csrftoken');
+    const wrapper = document.getElementById('html-questionnaire-wrapper');
+    const fallback = document.getElementById('html-fallback-submit');
+    const fallbackBtn = document.getElementById('html-submit-btn');
+
+    if (!wrapper) return;
+
+    const forms = wrapper.querySelectorAll('form');
+    let targetForm = forms[0];
+
+    // S'assurer qu'il y a une balise <form> : sinon en créer une qui enveloppe le contenu.
+    if (!targetForm) {
+        const newForm = document.createElement('form');
+        newForm.setAttribute('method', 'post');
+        newForm.setAttribute('action', '');
+        while (wrapper.firstChild) {
+            newForm.appendChild(wrapper.firstChild);
+        }
+        wrapper.appendChild(newForm);
+        targetForm = newForm;
+    }
+
+    // Injecter le jeton CSRF dans le formulaire.
+    if (csrf && targetForm) {
+        if (!targetForm.querySelector('input[name=csrfmiddlewaretoken]')) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrf;
+            targetForm.appendChild(csrfInput);
+        }
+    }
+
+    // Forcer la méthode / action pour poster vers cette vue.
+    targetForm.setAttribute('method', 'post');
+    targetForm.setAttribute('action', '');
+
+    // S'il n'y a pas de bouton de soumission dans le formulaire, proposer le bouton de secours.
+    const hasSubmit = targetForm.querySelector('button[type=submit], input[type=submit]');
+    if (!hasSubmit) {
+        fallback.classList.remove('hidden');
+        fallbackBtn.addEventListener('click', () => {
+            const evt = new Event('submit', { cancelable: true, bubbles: true });
+            const proceed = targetForm.dispatchEvent(evt);
+            if (proceed) targetForm.submit();
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -326,26 +326,58 @@ def admin_courses(request):
 def admin_questionnaires(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
-    
+
     formations = Formation.objects.all().order_by('name')
     success_message = None
-    
+    error_message = None
+
     if request.method == 'POST':
         formation_id = request.POST.get('formation_id')
         questions_json = request.POST.get('questions_json')
-        
-        if formation_id and questions_json:
+        html_file = request.FILES.get('html_file')
+        clear_html = request.POST.get('clear_html')
+
+        # --- Import / remplacement du questionnaire HTML ---
+        if clear_html and formation_id:
+            try:
+                formation = Formation.objects.get(pk=formation_id)
+                formation.questionnaire_html = ''
+                formation.questionnaire_date = None
+                formation.save()
+                success_message = f"Questionnaire HTML retiré pour {formation.name}."
+                formations = Formation.objects.all().order_by('name')
+            except Formation.DoesNotExist:
+                error_message = "Formation introuvable."
+        elif html_file and formation_id:
+            try:
+                formation = Formation.objects.get(pk=formation_id)
+                html_content = html_file.read().decode('utf-8', errors='replace')
+                formation.questionnaire_html = html_content
+                formation.questionnaire_date = timezone.now()
+                formation.save()
+                success_message = f"Questionnaire HTML importé pour {formation.name} !"
+                formations = Formation.objects.all().order_by('name')
+            except Formation.DoesNotExist:
+                error_message = "Formation introuvable."
+            except Exception:
+                error_message = "Erreur lors de l'import du fichier HTML."
+        elif formation_id and questions_json:
             try:
                 formation = Formation.objects.get(pk=formation_id)
                 formation.questionnaire_json = json.loads(questions_json)
                 formation.save()
                 success_message = f"Questionnaire enregistré pour {formation.name} !"
             except Exception:
-                pass
+                error_message = "Erreur lors de l'enregistrement du questionnaire JSON."
+
+    # Formations disposant déjà d'un questionnaire HTML importé
+    formations_with_html = [f.id for f in formations if f.questionnaire_html]
 
     return render(request, 'admin/questionnaires.html', {
         'formations': formations,
-        'success_message': success_message
+        'formations_with_html': formations_with_html,
+        'success_message': success_message,
+        'error_message': error_message,
     })
 
 @login_required(login_url='/')
@@ -1115,17 +1147,63 @@ def serviteur_questionnaire(request, pk):
     if request.user.role != 'serviteur':
         return redirect('/')
     formation = Formation.objects.get(pk=pk)
-    sf = ServiteurFormation.objects.get(serviteur=request.user, formation=formation)
-    
+    sf, created = ServiteurFormation.objects.get_or_create(
+        serviteur=request.user,
+        formation=formation,
+        defaults={'date_debut': timezone.now()}
+    )
+
+    # ✅ Si l'objet existait déjà mais sans date_debut, on démarre quand même le délai au clic.
+    if sf.date_debut is None:
+        sf.date_debut = timezone.now()
+        sf.save()
+
+    # ✅ Mise à jour automatique: si la date limite est dépassée et aucune soumission
+    if sf.statut == 2 and sf.date_soumission is None and sf.date_limite and sf.date_limite <= timezone.now():
+        sf.statut = 0  # Échoué
+        sf.save(update_fields=["statut"])
+
+    score_20 = round(sf.score * 0.2, 1) if sf.score else 0
+
+    # === Questionnaire HTML importé (prend le pas sur le QCM JSON) ===
+    if formation.questionnaire_html:
+        is_completed = sf.date_soumission is not None
+        if is_completed:
+            return render(request, 'serviteur/questionnaire_html.html', {
+                'formation': formation,
+                'sf': sf,
+                'is_completed': True,
+                'score_20': score_20,
+            })
+        if request.method == 'POST':
+            responses = {k: v for k, v in request.POST.items() if k != 'csrfmiddlewaretoken'}
+            score_raw = request.POST.get('score')
+            try:
+                score = int(float(score_raw)) if score_raw not in (None, '') else (100 if responses else 0)
+            except (ValueError, TypeError):
+                score = 100 if responses else 0
+            score = max(0, min(100, score))
+            sf.score = score
+            sf.date_soumission = timezone.now()
+            sf.html_responses = responses
+            sf.save()
+            return redirect('traning:serviteur_dashboard')
+        return render(request, 'serviteur/questionnaire_html.html', {
+            'formation': formation,
+            'sf': sf,
+            'is_completed': False,
+            'score_20': score_20,
+        })
+
+    # === Questionnaire JSON classique ===
     if sf.score > 0:
-        score_20 = round(sf.score * 0.2, 1)
         return render(request, 'serviteur/questionnaire.html', {
-            'formation': formation, 
-            'sf': sf, 
+            'formation': formation,
+            'sf': sf,
             'is_completed': True,
             'score_20': score_20
         })
-    
+
     if request.method == 'POST':
         questionnaire = formation.questionnaire_json
         score = 0
@@ -1134,7 +1212,7 @@ def serviteur_questionnaire(request, pk):
             q = questionnaire[i]
             q_type = q.get('type')
             user_answer_str = request.POST.get(f'question_{i}', '').strip().lower()
-            
+
             # Détection automatique du type si manquant (pour compatibilité)
             if not q_type:
                 q_type = 'qcm' if 'options' in q else 'text'

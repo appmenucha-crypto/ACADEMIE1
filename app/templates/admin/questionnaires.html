@@ -16,13 +16,13 @@
         <h3 class="text-lg font-bold text-charcoal mb-6 flex items-center gap-2">
             <i class="fas fa-tasks text-accent-blue"></i> Configurer le Questionnaire
         </h3>
-        <form method="post" id="main-form" class="space-y-6" onsubmit="prepareSubmit(event)">
+        <form method="post" id="main-form" class="space-y-6" onsubmit="prepareSubmit(event)" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="questions_json" id="questions_json_input">
             
             <div class="border-b border-gray-100 pb-6">
                 <label class="block text-sm font-bold text-charcoal mb-2">1. Sélectionner la Formation</label>
-                <select name="formation_id" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-accent-blue/20 outline-none cursor-pointer font-medium">
+                <select name="formation_id" id="formation_select" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-accent-blue/20 outline-none cursor-pointer font-medium">
                     <option value="" disabled selected>Choisir une formation...</option>
                     {% for formation in formations %}
                         <option value="{{ formation.id }}">{{ formation.name }}</option>
@@ -30,6 +30,52 @@
                 </select>
             </div>
 
+            <!-- Import HTML -->
+            <div class="border-b border-gray-100 pb-6">
+                <label class="block text-sm font-bold text-charcoal mb-2">2. Importer un questionnaire HTML</label>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-xs text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>Votre fichier HTML doit contenir un <code>&lt;form method="post"&gt;</code>.
+                        Ajoutez un champ <code>score</code> (0-100) pour la note ; sinon, la soumission compte comme validée (100).
+                    </label>
+                    <button type="button" onclick="clearHtmlForm()" class="inline-flex items-center gap-2 text-xs font-semibold text-danger-red hover:text-red-800">
+                        <i class="fas fa-trash"></i> Effacer le HTML
+                    </button>
+                </div>
+                <div class="flex flex-col sm:flex-row items-stretch gap-3">
+                    <input type="file" name="html_file" id="html_file_input" accept=".html, .htm" class="hidden" onchange="updateHtmlName()">
+                    <label for="html_file_input" class="flex-1 cursor-pointer bg-gray-50 hover:bg-gray-100 border border-gray-200 text-charcoal font-medium py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-center">
+                        <i class="fas fa-file-import text-accent-blue"></i>
+                        <span id="html_file_name">Cliquez pour choisir un fichier HTML</span>
+                    </label>
+                    <button type="button" onclick="importHtml()" 
+                        class="bg-gradient-to-r from-accent-blue to-blue-600 hover:from-blue-600 hover:to-blue-700 text-yellow-400 py-3 px-6 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2">
+                        <i class="fas fa-upload"></i> Importer le HTML
+                    </button>
+                </div>
+                <input type="hidden" name="clear_html" id="clear_html_input" value="">
+            </div>
+
+{% if error_message %}
+<div id="error-toast" class="fixed top-24 right-8 z-[100] bg-danger-red text-white px-6 py-4 rounded-2xl shadow-2xl animate-slide-in">
+    <i class="fas fa-exclamation-circle mr-2"></i>{{ error_message }}
+</div>
+{% endif %}
+
+{% if formations_with_html %}
+<div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+    <div class="flex flex-wrap items-center gap-2 text-sm text-blue-800">
+        <i class="fas fa-file-export"></i>
+        <span class="font-semibold">Questionnaires HTML importés :</span>
+        {% for formation in formations %}
+            {% if formation.id in formations_with_html %}
+                <span class="px-2 py-0.5 bg-blue-100 rounded-full">{{ formation.name }}{% if formation.questionnaire_date %} <small class="opacity-70">({{ formation.questionnaire_date|date:"d/m/Y" }})</small>{% endif %}</span>
+            {% endif %}
+        {% endfor %}
+    </div>
+    <p class="text-xs text-blue-600 mt-1">Un questionnaire HTML prend le pas sur le QCM pour cette formation côté élève.</p>
+</div>
+{% endif %}
             <div>
                 <label class="block text-sm font-bold text-charcoal mb-4">2. Questions du QCM</label>
                 <div id="questions-container" class="space-y-4 sm:max-h-[500px] overflow-y-auto pr-1 sm:pr-2">
@@ -180,13 +226,20 @@ function updatePreview() {
 }
 
 function prepareSubmit(e) {
+    if (window.__htmlImportMode) {
+        window.__htmlImportMode = false;
+        return;
+    }
+    // Mode sauvegarde JSON : on évite qu'un fichier HTML résiduel déclenche un import HTML.
+    const htmlInput = document.getElementById('html_file_input');
+    if (htmlInput) htmlInput.value = '';
     const blocks = document.querySelectorAll('.question-block');
     const data = [];
-    
+
     blocks.forEach(block => {
         const type = block.querySelector('.q-type').value;
         const question = block.querySelector('.q-text').value;
-        
+
         if (type === 'qcm') {
             const options = Array.from(block.querySelectorAll('.q-opt')).map(i => i.value);
             const correct = Array.from(block.querySelectorAll('.q-correct')).findIndex(i => i.checked);
@@ -196,16 +249,57 @@ function prepareSubmit(e) {
             data.push({ type, question, answer });
         }
     });
-    
+
     document.getElementById('questions_json_input').value = JSON.stringify(data);
 }
 
+// === Import / gestion du questionnaire HTML ===
+function updateHtmlName() {
+    const input = document.getElementById('html_file_input');
+    const label = document.getElementById('html_file_name');
+    if (input.files.length) {
+        label.textContent = input.files[0].name;
+    }
+}
+
+function importHtml() {
+    const input = document.getElementById('html_file_input');
+    const select = document.getElementById('formation_select');
+    if (!select.value) {
+        alert('Veuillez d\'abord sélectionner une formation.');
+        return;
+    }
+    if (!input.files || !input.files.length) {
+        alert('Veuillez choisir un fichier HTML.');
+        return;
+    }
+    window.__htmlImportMode = true;
+    document.getElementById('clear_html_input').value = '';
+    document.getElementById('main-form').submit();
+}
+
+function clearHtmlForm() {
+    const select = document.getElementById('formation_select');
+    if (!select.value) {
+        alert('Veuillez d\'abord sélectionner une formation.');
+        return;
+    }
+    if (!confirm('Retirer le questionnaire HTML importé de cette formation ?')) return;
+    document.getElementById('html_file_input').value = '';
+    document.getElementById('questions_json_input').value = '';
+    document.getElementById('clear_html_input').value = '1';
+    document.getElementById('main-form').submit();
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     addQuestion(); 
-    setTimeout(() => {
-        const toast = document.getElementById('success-toast');
-        if (toast) toast.style.display = 'none';
-    }, 4000);
+        setTimeout(() => {
+            const toast = document.getElementById('success-toast');
+            if (toast) toast.style.display = 'none';
+            const err = document.getElementById('error-toast');
+            if (err) err.style.display = 'none';
+        }, 4000);
 });
 </script>
 

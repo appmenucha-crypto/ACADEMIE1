@@ -38,6 +38,8 @@ class CustomUser(AbstractUser):
 class Formation(models.Model):
     name = models.CharField(max_length=200, verbose_name=_("Nom de la formation"))
     questionnaire_json = models.JSONField(default=list, verbose_name=_("Questionnaire (JSON)"), help_text=_("Liste [{'question': '..', 'options': ['a','b'], 'correct': 0}]"))
+    questionnaire_html = models.TextField(blank=True, default='', verbose_name=_("Questionnaire (HTML)"), help_text=_("Contenu HTML d'un questionnaire importé. Prend le pas sur le questionnaire JSON lorsqu'il est renseigné."))
+    questionnaire_date = models.DateTimeField(blank=True, null=True, verbose_name=_("Date de mise à disposition (HTML)"))
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -102,6 +104,7 @@ class ServiteurFormation(models.Model):
 
     score = models.IntegerField(default=0, help_text="Pourcentage /100")
     statut = models.IntegerField(choices=STATUT_CHOICES, default=2)
+    html_responses = models.JSONField(blank=True, null=True, verbose_name=_("Réponses du questionnaire HTML"))
 
     class Meta:
         unique_together = ['serviteur', 'formation']
