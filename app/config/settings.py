@@ -89,25 +89,25 @@ AUTH_USER_MODEL = 'traning.CustomUser'
 
 
 
+#DATABASES = {
+ #   "default": {
+  #     "ENGINE": "django.db.backends.sqlite3",
+   #    "NAME": BASE_DIR / "db.sqlite3",
+  #  }
+#}
+
+
+
 DATABASES = {
-    "default": {
-       "ENGINE": "django.db.backends.sqlite3",
-       "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'formation_vh_db',
+        'USER': 'esther',
+        'PASSWORD': '123456',
+        'HOST': 'academievh-formationvhdb-ksxu1x', # Internal host  academievh-formationvhdb-ksxu1x        
+        'PORT': '5432',  # Internal port
     }
 }
-
-
-
-#DATABASES = {
- #   'default': {
-  #      'ENGINE': 'django.db.backends.postgresql',
-   #     'NAME': 'formation_vh_db',
-    #    'USER': 'esther',
-     #   'PASSWORD': '123456',
-      #  'HOST': 'academievh-formationvhdb-ksxu1x', # Internal host  academievh-formationvhdb-ksxu1x        
-       # 'PORT': '5432',  # Internal port
-   # }
-#}
 
 
 # Password validation
