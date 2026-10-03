@@ -28,23 +28,6 @@
         {{ formation.questionnaire_html|safe }}
     </div>
 
-    <div id="html-fallback-submit" class="hidden mt-8">
-        <div class="flex justify-center">
-            <button type="button" id="html-submit-btn" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-8 py-4 rounded-3xl font-bold text-lg shadow-2xl transition-all flex items-center justify-center gap-3">
-                <i class="fas fa-paper-plane"></i>Envoyer mes réponses
-            </button>
-        </div>
-    </div>
-
-    <div id="html-instructions" class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-2xl">
-        <div class="flex items-start gap-3">
-            <i class="fas fa-info-circle text-accent-blue mt-0.5"></i>
-            <p class="text-sm text-gray-600">
-                Le questionnaire ci-dessus provient d'un fichier HTML importé.
-                Une fois terminé, cliquez sur le bouton de soumission du formulaire (ou utilisez le bouton ci-dessous s'aucun n'apparaît).
-            </p>
-        </div>
-    </div>
     {% endif %}
 </div>
 
@@ -54,57 +37,212 @@ document.addEventListener('DOMContentLoaded', () => {
     if (is_completed) return;
 
     const getCookie = (name) => {
-        const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{+}\\()\\[\\]^\\x00-x20\\x7f]/g, '\\$&') + '=([^;]*)'));
-        return m ? decodeURIComponent(m[1]) : null;
+        const parts = (document.cookie || '').split(';');
+        for (const part of parts) {
+            const cookie = part.trim();
+            if (cookie.indexOf(name + '=') === 0) {
+                return decodeURIComponent(cookie.substring(name.length + 1));
+            }
+        }
+        return null;
     };
 
-    const csrf = getCookie('csrftoken');
+    const csrf = '{{ csrf_token }}' || getCookie('csrftoken');
     const wrapper = document.getElementById('html-questionnaire-wrapper');
-    const fallback = document.getElementById('html-fallback-submit');
-    const fallbackBtn = document.getElementById('html-submit-btn');
 
     if (!wrapper) return;
 
-    const forms = wrapper.querySelectorAll('form');
-    let targetForm = forms[0];
+    /* ------------------------------------------------------------------
+       Le HTML importé est autonome : ses boutons pilotent SON quiz
+       ("Commencer le Quiz", "Suivant"...). On empêche donc toute
+       soumission native du formulaire pour ne pas quitter la page.
+       preventDefault() n'empêche pas le JavaScript du quiz de tourner :
+       le questionnaire continue de s'afficher normalement.
+    ------------------------------------------------------------------ */
+    wrapper.addEventListener('submit', (event) => event.preventDefault(), true);
+    wrapper.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!target || typeof target.closest !== 'function') return;
+        const control = target.closest('button, input[type=submit], input[type=image]');
+        if (!control) return;
+        const type = String(control.type || '').toLowerCase();
+        if (type === 'button' || type === 'reset' || type === 'hidden') return;
+        event.preventDefault();
+    }, true);
 
-    // S'assurer qu'il y a une balise <form> : sinon en créer une qui enveloppe le contenu.
-    if (!targetForm) {
-        const newForm = document.createElement('form');
-        newForm.setAttribute('method', 'post');
-        newForm.setAttribute('action', '');
-        while (wrapper.firstChild) {
-            newForm.appendChild(wrapper.firstChild);
-        }
-        wrapper.appendChild(newForm);
-        targetForm = newForm;
+    // Jeton CSRF dans le formulaire du HTML, s'il en possède un.
+    const targetForm = wrapper.querySelector('form');
+    if (csrf && targetForm && !targetForm.querySelector('input[name=csrfmiddlewaretoken]')) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrf;
+        targetForm.appendChild(csrfInput);
     }
 
-    // Injecter le jeton CSRF dans le formulaire.
-    if (csrf && targetForm) {
-        if (!targetForm.querySelector('input[name=csrfmiddlewaretoken]')) {
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = 'csrfmiddlewaretoken';
-            csrfInput.value = csrf;
-            targetForm.appendChild(csrfInput);
+    /* ------------------------------------------------------------------
+       Synchronisation automatique : quand le HTML importé affiche la fin
+       de l'épreuve et sa note, on l'enregistre côté serveur pour qu'elle
+       s'affiche partout (dashboard, formations, résultats admin) et que
+       le cours soit clôturé comme après un questionnaire JSON.
+    ------------------------------------------------------------------ */
+    const SAVE_URL = '{% url 'traning:serviteur_questionnaire_html_result' formation.pk %}';
+
+    const SCORE_HINT = /(score|resultat|résultat|note|grade|points|pourcent|percent)/i;
+    const DONE_HINT = /(termin[ée]\w*|f[ée]licitations?\b|\bbravo\b|r[ée]ussi\w*|[ée]puis[ée]\w*|votre\s+(score|note|resultat|résultat)|r[ée]sultat\s*(final|total|obtenu)|score\s*(final|total|obtenu|obtenue))/i;
+
+    let sent = false;
+    let lastSignature = '';
+    let debounce = null;
+
+    const clamp = (value) => Math.max(0, Math.min(100, Math.round(value)));
+    const parseNumber = (raw) => {
+        if (raw === null || raw === undefined) return null;
+        const match = String(raw).replace(',', '.').match(/-?\d+(?:\.\d+)?/);
+        if (!match) return null;
+        const value = parseFloat(match[0]);
+        return Number.isFinite(value) ? value : null;
+    };
+
+    // Note déduite d'un texte : "8/20", "75 %", "Score : 15", "note: 12"
+    const scoreFromText = (text) => {
+        if (!text) return null;
+        let m = text.match(/(-?\d+(?:[.,]\d+)?)\s*(?:%|pour\s*cent|percent\b)/i);
+        if (m) return clamp(parseFloat(m[1].replace(',', '.')));
+        m = text.match(/(-?\d+(?:[.,]\d+)?)\s*\/\s*(10|20|100)\b/);
+        if (m) return clamp((parseFloat(m[1].replace(',', '.')) / parseInt(m[2], 10)) * 100);
+        m = text.match(/(?:score|note|r[ée]sultat|points?)\s*[:=]?\s*(-?\d+(?:[.,]\d+)?)/i);
+        if (m) return clamp(parseFloat(m[1].replace(',', '.')));
+        return null;
+    };
+
+    const scoreFromValue = (raw) => {
+        if (raw === null || raw === undefined || String(raw).trim() === '') return null;
+        const fromText = scoreFromText(String(raw));
+        if (fromText !== null) return fromText;
+        const value = parseNumber(raw);
+        return value === null ? null : clamp(value);
+    };
+
+    // Variables renseignées par le script du HTML importé (window.score, window.note...).
+    const scoreFromGlobals = () => {
+        const names = ['score', 'resultat', 'result', 'note', 'finalScore', 'totalScore', 'points', 'grade'];
+        for (const name of names) {
+            if (typeof window[name] === 'number' && Number.isFinite(window[name])) return clamp(window[name]);
         }
-    }
+        return null;
+    };
 
-    // Forcer la méthode / action pour poster vers cette vue.
-    targetForm.setAttribute('method', 'post');
-    targetForm.setAttribute('action', '');
-
-    // S'il n'y a pas de bouton de soumission dans le formulaire, proposer le bouton de secours.
-    const hasSubmit = targetForm.querySelector('button[type=submit], input[type=submit]');
-    if (!hasSubmit) {
-        fallback.classList.remove('hidden');
-        fallbackBtn.addEventListener('click', () => {
-            const evt = new Event('submit', { cancelable: true, bubbles: true });
-            const proceed = targetForm.dispatchEvent(evt);
-            if (proceed) targetForm.submit();
+    // Champs ou blocs explicitement nommés "score"/"note"/"résultat" : signal fiable.
+    // Renvoie { value, fromField } : fromField = note portée par un champ de formulaire.
+    const scoreFromMarkers = () => {
+        let found = null;
+        const selector = '[data-score], [data-note], [data-result], input, output, span, div, p, strong, b, em, h1, h2, h3, h4, td, li, label';
+        wrapper.querySelectorAll(selector).forEach((node) => {
+            const dataValue = node.getAttribute('data-score') || node.getAttribute('data-note') || node.getAttribute('data-result');
+            if (dataValue) {
+                const value = scoreFromValue(dataValue);
+                if (value !== null) found = { value: value, fromField: false };
+                return;
+            }
+            const marker = (node.id || '') + ' ' + (typeof node.className === 'string' ? node.className : '');
+            const isField = node.tagName === 'INPUT' || node.tagName === 'SELECT'
+                || node.tagName === 'TEXTAREA' || node.tagName === 'OUTPUT';
+            if (isField) {
+                if (!SCORE_HINT.test((node.name || '') + ' ' + marker)) return;
+                const value = scoreFromValue(node.value);
+                if (value !== null) found = { value: value, fromField: true };
+                return;
+            }
+            if (!SCORE_HINT.test(marker)) return;
+            const text = (node.textContent || '').trim();
+            if (!text || text.length > 60) return;
+            const value = scoreFromValue(text);
+            if (value !== null) found = { value: value, fromField: false };
         });
+        return found;
+    };
+
+    // Réponses du apprenant, telles que le formulaire les enverrait.
+    const collectResponses = () => {
+        const responses = {};
+        wrapper.querySelectorAll('input, select, textarea').forEach((el) => {
+            const key = el.name || el.id;
+            if (!key) return;
+            if (el.type === 'radio' || el.type === 'checkbox') {
+                if (el.checked) responses[key] = (el.value && el.value !== 'on') ? el.value : 'true';
+                return;
+            }
+            if (SCORE_HINT.test(key)) return;
+            if (el.value) responses[key] = el.value;
+        });
+        return responses;
+    };
+
+    const isFinished = () => DONE_HINT.test(wrapper.innerText || '');
+
+    const send = (score, responses) => {
+        if (sent) return;
+        sent = true;
+        fetch(SAVE_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },
+            body: JSON.stringify({ score: score, responses: responses })
+        })
+            .then((res) => res.ok ? res.json() : Promise.reject(res))
+            .then(() => { window.location.reload(); })
+            .catch(() => { sent = false; scheduleCheck(); });
+    };
+
+    let baselineScore = null;  // note déjà présente dans un champ de formulaire au chargement
+    let baselineKnown = false;
+
+    // Renvoie la note à enregistrer, ou null si l'épreuve n'est pas terminée.
+    const detectScore = () => {
+        const marker = scoreFromMarkers();
+        const score = marker !== null ? marker.value : scoreFromGlobals();
+        if (score === null) return null;
+
+        if (marker !== null && marker.fromField) {
+            // Un champ de note déjà rempli au chargement ne prouve pas la fin
+            // de l'épreuve : on attend qu'il change.
+            if (!baselineKnown) {
+                baselineScore = marker.value;
+                baselineKnown = true;
+            }
+            if (marker.value === baselineScore) return null;
+        } else if (marker !== null && !isFinished()) {
+            // Une note lue dans un bloc nommé doit être confirmée par un écran de fin.
+            return null;
+        }
+        return score;
+    };
+
+    const check = () => {
+        if (sent) return;
+        const signature = wrapper.innerHTML.length + ':' + (wrapper.innerText || '').length;
+        if (signature === lastSignature) return;
+        lastSignature = signature;
+
+        const score = detectScore();
+        if (score === null) return;
+        send(score, collectResponses());
+    };
+
+    function scheduleCheck() {
+        clearTimeout(debounce);
+        debounce = setTimeout(check, 700);
     }
+
+    new MutationObserver(scheduleCheck).observe(wrapper, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true
+    });
+    setInterval(scheduleCheck, 4000);
+    scheduleCheck();
 });
 </script>
 {% endblock %}

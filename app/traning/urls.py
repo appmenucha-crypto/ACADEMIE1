@@ -24,5 +24,6 @@ path('admin/courses/', views.admin_courses, name='admin_courses'),
     path('serviteur/formations/', views.serviteur_formations, name='serviteur_formations'),
     path('serviteur/formation/<int:pk>/', views.serviteur_formation_detail, name='serviteur_formation_detail'),
     path('serviteur/formation/<int:pk>/questionnaire/', views.serviteur_questionnaire, name='serviteur_questionnaire'),
+    path('serviteur/formation/<int:pk>/questionnaire/resultat/', views.serviteur_questionnaire_html_result, name='serviteur_questionnaire_html_result'),
     path('serviteur/vertumetre/', views.serviteur_vertumetre, name='serviteur_vertumetre'),
 ]

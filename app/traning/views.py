@@ -10,6 +10,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Count, Avg, Q
+from django.views.decorators.http import require_POST
 from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile, Departement
 
 from .forms import ServiteurForm, FormationCreationForm, VertumetreForm
@@ -1044,7 +1045,8 @@ def serviteur_dashboard(request):
         if sf.statut == 1:
             sf.display_status = 'valid'
         elif sf.statut == 0:
-            sf.display_status = 'expired'
+            # Épreuve terminée (soumission enregistrée) mais non validée, ou délai dépassé.
+            sf.display_status = 'failed' if sf.date_soumission is not None else 'expired'
         else:
             sf.display_status = 'progress'
     
@@ -1091,7 +1093,9 @@ def serviteur_formations(request):
         sf = progress_dict.get(formation.pk)
 
         if sf:
-            if sf.score and sf.score > 0:
+            # Le cours est considéré terminé dès que la soumission est enregistrée
+            # (note affichée par le HTML importé comprise), même si la note est de 0.
+            if sf.date_soumission is not None:
                 status = 'completed'
                 score20 = round(sf.score * 0.2, 1)
             elif sf.date_debut:
@@ -1139,7 +1143,110 @@ def serviteur_formation_detail(request, pk):
         sf.save(update_fields=["statut"])
 
     score_20 = round(sf.score * 0.2, 1) if sf.score else 0
-    return render(request, 'serviteur/formation_detail.html', {'formation': formation, 'sf': sf, 'score_20': score_20})
+    return render(request, 'serviteur/formation_detail.html', {
+        'formation': formation,
+        'sf': sf,
+        'score_20': score_20,
+        'has_result': sf.date_soumission is not None,
+    })
+
+
+def _coerce_score(score_raw):
+    """Convertit une valeur de note (/100) en entier borné, ou None si inexploitable."""
+    if score_raw is None or score_raw == '':
+        return None
+    try:
+        return int(round(float(str(score_raw).replace(',', '.'))))
+    except (TypeError, ValueError):
+        return None
+
+
+def _record_html_result(sf, responses, score_raw=None):
+    """Enregistre les réponses du questionnaire HTML importé et clôture le cours.
+
+    Le statut (validé / échoué) est recalculé dans ServiteurFormation.save()
+    à partir de date_soumission, comme pour le questionnaire JSON.
+    """
+    responses = responses if isinstance(responses, dict) else {}
+    score = _coerce_score(score_raw)
+    if score is None:
+        # Sans note explicite, une soumission avec réponses vaut 100/100.
+        # Si le cours est déjà noté, on conserve la note existante.
+        score = sf.score if sf.date_soumission is not None else (100 if responses else 0)
+    score = max(0, min(100, score))
+
+    sf.score = score
+    if sf.date_soumission is None:
+        sf.date_soumission = timezone.now()
+    if responses or not sf.html_responses:
+        sf.html_responses = responses or sf.html_responses
+    sf.save()
+    return score
+
+
+@login_required(login_url='/')
+@require_POST
+def serviteur_questionnaire_html_result(request, pk):
+    """Reçoit la note affichée par le questionnaire HTML importé.
+
+    Appelé en AJAX lorsque le HTML importé signale la fin de l'épreuve et sa note,
+    afin que cette note apparaisse partout (dashboard, formations, résultats admin)
+    et que le cours soit clôturé exactement comme après un questionnaire JSON.
+    """
+    if request.user.role != 'serviteur':
+        return JsonResponse({'error': 'Accès refusé'}, status=403)
+
+    try:
+        formation = Formation.objects.get(pk=pk)
+    except Formation.DoesNotExist:
+        return JsonResponse({'error': 'Formation introuvable'}, status=404)
+
+    if 'application/json' in (request.content_type or ''):
+        try:
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+        except (ValueError, UnicodeDecodeError):
+            payload = {}
+    else:
+        payload = request.POST.dict()
+    if not isinstance(payload, dict):
+        payload = {}
+
+    score_keys = ('score', 'note', 'resultat', 'score_20', 'total')
+
+    responses = payload.get('responses')
+    if isinstance(responses, str):
+        try:
+            responses = json.loads(responses)
+        except ValueError:
+            responses = {}
+    if not isinstance(responses, dict):
+        responses = {}
+    if not responses:
+        responses = {
+            k: v for k, v in payload.items()
+            if k not in score_keys and k != 'csrfmiddlewaretoken' and k != 'responses'
+        }
+
+    score_raw = next((payload[k] for k in score_keys if payload.get(k) not in (None, '')), None)
+
+    sf, created = ServiteurFormation.objects.get_or_create(
+        serviteur=request.user,
+        formation=formation,
+        defaults={'date_debut': timezone.now()}
+    )
+    if sf.date_debut is None:
+        sf.date_debut = timezone.now()
+
+    score = _record_html_result(sf, responses, score_raw)
+
+    return JsonResponse({
+        'ok': True,
+        'score': score,
+        'score_20': round(score * 0.2, 1),
+        'statut': sf.statut,
+        'statut_display': sf.get_statut_display(),
+        'date_soumission': sf.date_soumission.isoformat(),
+    })
 
 
 @login_required(login_url='/')
@@ -1168,6 +1275,7 @@ def serviteur_questionnaire(request, pk):
     # === Questionnaire HTML importé (prend le pas sur le QCM JSON) ===
     if formation.questionnaire_html:
         is_completed = sf.date_soumission is not None
+        score_20 = round(sf.score * 0.2, 1) if sf.score else 0
         if is_completed:
             return render(request, 'serviteur/questionnaire_html.html', {
                 'formation': formation,
@@ -1177,17 +1285,10 @@ def serviteur_questionnaire(request, pk):
             })
         if request.method == 'POST':
             responses = {k: v for k, v in request.POST.items() if k != 'csrfmiddlewaretoken'}
-            score_raw = request.POST.get('score')
-            try:
-                score = int(float(score_raw)) if score_raw not in (None, '') else (100 if responses else 0)
-            except (ValueError, TypeError):
-                score = 100 if responses else 0
-            score = max(0, min(100, score))
-            sf.score = score
-            sf.date_soumission = timezone.now()
-            sf.html_responses = responses
-            sf.save()
-            return redirect('traning:serviteur_dashboard')
+            score_raw = request.POST.get('score') or request.POST.get('note')
+            _record_html_result(sf, responses, score_raw)
+            # On reste sur la page du questionnaire : elle affiche la note obtenue.
+            return redirect('traning:serviteur_questionnaire', pk=pk)
         return render(request, 'serviteur/questionnaire_html.html', {
             'formation': formation,
             'sf': sf,

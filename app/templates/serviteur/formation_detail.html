@@ -22,7 +22,7 @@
             <h1 class="text-xl sm:text-3xl font-bold text-charcoal mb-1">{{ formation.name }}</h1>
             <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                 <span><i class="fas fa-clock mr-1"></i>Début: {{ sf.date_debut|date:"d/m/Y H:i"|default:"Non commencé" }}</span>
-                {% if score_20 > 0 %}
+                {% if has_result %}
                     <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-semibold"><i class="fas fa-star mr-1"></i>{{ score_20|floatformat:1 }}/20</span>
                 {% endif %}
             </div>
@@ -31,7 +31,7 @@
             <a href="{% url 'traning:serviteur_dashboard' %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all text-sm">
                 <i class="fas fa-arrow-left"></i>Dashboard
             </a>
-            {% if score_20 > 0 %}
+            {% if has_result %}
             <div class="bg-gradient-to-r from-emerald-400 to-emerald-500 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm">
                 <i class="fas fa-star"></i>{{ score_20|floatformat:1 }}/20
                 {% if score_20 >= 10 %}<span class="px-2 py-0.5 bg-white/30 rounded-full text-xs">✅ Validé</span>{% else %}<span class="px-2 py-0.5 bg-white/30 rounded-full text-xs">❌ Terminé</span>{% endif %}
