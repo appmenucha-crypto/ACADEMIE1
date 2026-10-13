@@ -78,7 +78,7 @@ from .models_vertumetre import ServiteurVertumetre
 
 @admin.register(ServiteurVertumetre)
 class ServiteurVertumetreAdmin(admin.ModelAdmin):
-    list_display = ('serviteur', 'submitted_at', 'is_submitted_recently')
-    list_filter = ('submitted_at',)
+    list_display = ('serviteur', 'last_submitted_at', 'submissions_count', 'is_submitted_recently')
+    list_filter = ('last_submitted_at',)
     search_fields = ('serviteur__username', 'serviteur__first_name', 'serviteur__last_name')
-    readonly_fields = ('answers', 'submitted_at')
+    readonly_fields = ('answers', 'last_submitted_at', 'submissions_count')

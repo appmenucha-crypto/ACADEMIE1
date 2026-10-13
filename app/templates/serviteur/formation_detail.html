@@ -1,78 +1,157 @@
 {% extends 'serviteur/base.html' %}
 
 {% block page_title %}{{ formation.name }}{% endblock %}
-{% block subtitle %}Écoutez les vocaux par bloc (séquentiel){% endblock %}
+{% block subtitle %}{% if sf.date_limite %}Échéance : {{ sf.date_limite|date:"d/m/Y H:i" }}{% else %}Écoutez les vocaux par bloc (séquentiel){% endif %}{% endblock %}
 
 {% block serviteur_content %}
-<div class="glass-panel p-3 sm:p-6 rounded-2xl relative">
-{% if sf.statut == 0 %}
-    <div class="absolute inset-0 bg-gray-100/60 backdrop-blur-sm rounded-2xl z-10 flex items-start justify-center pointer-events-auto">
+<div class="glass-panel p-4 sm:p-6 rounded-2xl relative">
 
-        <div class="mt-24 text-center px-6">
-            <div class="inline-flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 rounded-full px-4 py-2 shadow-sm">
-                <i class="fas fa-times-circle"></i>
-                <span class="font-bold text-sm">Formation expirée — accès désactivé</span>
+    <!-- Statut header -->
+    <div class="mb-6">
+        {% if sf.statut == 0 %}
+            <div class="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-4 rounded-2xl flex items-center justify-between shadow-lg">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-hourglass-end text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-lg">Formation expirée</p>
+                        <p class="text-sm opacity-90">Le délai de 3 jours est dépassé — accès désactivé</p>
+                    </div>
+                </div>
+                <span class="px-4 py-1.5 bg-white/20 rounded-full text-sm font-semibold">ÉCHOUÉ</span>
             </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="flex flex-col gap-3 mb-6 relative z-20">
-        <div>
-            <h1 class="text-xl sm:text-3xl font-bold text-charcoal mb-1">{{ formation.name }}</h1>
-            <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                <span><i class="fas fa-clock mr-1"></i>Début: {{ sf.date_debut|date:"d/m/Y H:i"|default:"Non commencé" }}</span>
-                {% if has_result %}
-                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-semibold"><i class="fas fa-star mr-1"></i>{{ score_20|floatformat:1 }}/20</span>
+        {% elif has_result %}
+            <div class="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-4 rounded-2xl flex items-center justify-between shadow-lg">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-flag-checkered text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-lg">Questionnaire soumis</p>
+                        <p class="text-sm opacity-90">Soumis le {{ sf.date_soumission|date:"d/m/Y à H:i" }}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-2xl">{{ score_20|floatformat:1 }}/20</p>
+                    <p class="text-xs opacity-90">{% if score_20 >= 10 %}✅ Validé{% else %}❌ Non validé{% endif %}</p>
+                </div>
+            </div>
+        {% elif sf.statut == 2 and sf.date_limite %}
+            <div id="countdown-banner" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-4 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-lg">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-clock text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-lg">Temps restant pour le questionnaire</p>
+                        <p class="text-sm opacity-90">Vous avez commencé le {{ sf.date_debut|date:"d/m/Y à H:i" }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <div id="countdown-timer" class="font-mono text-xl font-bold tracking-wider bg-white/20 px-4 py-2 rounded-xl min-w-[180px] text-center" data-deadline="{{ sf.date_limite|date:"c" }}">
+                        --j --h --m --s
+                    </div>
+                    <a href="{% url 'traning:serviteur_questionnaire' formation.pk %}" class="bg-white text-amber-600 hover:bg-gray-100 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md flex items-center gap-2 whitespace-nowrap">
+                        <i class="fas fa-clipboard-check"></i> Faire le questionnaire
+                    </a>
+                </div>
+            </div>
+        {% else %}
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-2xl flex items-center justify-between shadow-lg">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-play-circle text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-lg">Prêt à commencer</p>
+                        <p class="text-sm opacity-90">Cliquez sur le bouton pour démarrer le chronomètre de 3 jours</p>
+                    </div>
+                </div>
+                {% if formation.questionnaire_json or formation.questionnaire_html %}
+                <a href="{% url 'traning:serviteur_questionnaire' formation.pk %}" class="bg-white text-blue-600 hover:bg-gray-100 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md flex items-center gap-2">
+                    <i class="fas fa-rocket"></i> Démarrer
+                </a>
                 {% endif %}
             </div>
-        </div>
-        <div class="flex flex-wrap gap-2 relative z-20">
-            <a href="{% url 'traning:serviteur_dashboard' %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all text-sm">
-                <i class="fas fa-arrow-left"></i>Dashboard
-            </a>
-            {% if has_result %}
-            <div class="bg-gradient-to-r from-emerald-400 to-emerald-500 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm">
-                <i class="fas fa-star"></i>{{ score_20|floatformat:1 }}/20
-                {% if score_20 >= 10 %}<span class="px-2 py-0.5 bg-white/30 rounded-full text-xs">✅ Validé</span>{% else %}<span class="px-2 py-0.5 bg-white/30 rounded-full text-xs">❌ Terminé</span>{% endif %}
+        {% endif %}
+    </div>
+
+    <!-- En-tête formation -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-4 border-b border-gray-100">
+        <div>
+            <h1 class="text-xl sm:text-3xl font-bold text-charcoal mb-1">{{ formation.name }}</h1>
+            <div class="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                <span><i class="fas fa-layer-group mr-1"></i>{{ formation.blocs.count }} bloc{{ formation.blocs.count|pluralize }}</span>
             </div>
-            {% else %}
-            {% if sf.statut != 0 %}
-                {% if formation.questionnaire_json or formation.questionnaire_html %}
-            <a href="{% url 'traning:serviteur_questionnaire' formation.pk %}" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm shadow-lg transition-all">
-                <i class="fas fa-clipboard-check"></i><span>Questionnaire</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'traning:serviteur_dashboard' %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all text-sm">
+                <i class="fas fa-arrow-left"></i> Dashboard
             </a>
-                 {% endif %}
-            {% endif %}
-            {% endif %}
         </div>
     </div>
 
-    <div class="space-y-6 relative z-20">
+    <!-- Contenu par blocs -->
+    <div class="space-y-5">
 
         {% for bloc in formation.blocs.all %}
-        <section class="bloc-section bg-white/50 backdrop-blur-xl p-3 sm:p-6 rounded-2xl border border-white/30">
-            <div class="flex items-center gap-3 mb-5">
-                <span class="w-9 h-9 sm:w-11 sm:h-11 bg-gradient-to-br from-accent-blue to-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0">{{ forloop.counter }}</span>
-                <h2 class="text-lg sm:text-2xl font-bold text-charcoal">{{ bloc.name }}</h2>
+        <section class="bloc-section bg-white/60 backdrop-blur-xl p-4 sm:p-6 rounded-2xl border border-gray-100 hover:border-accent-blue/30 transition-all">
+            <div class="flex items-center gap-4 mb-5">
+                <span class="w-11 h-11 sm:w-13 sm:h-13 bg-gradient-to-br from-accent-blue to-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0 shadow-lg">
+                    {{ forloop.counter }}
+                </span>
+                <div>
+                    <h2 class="text-lg sm:text-2xl font-bold text-charcoal">{{ bloc.name }}</h2>
+                    <div class="flex gap-3 mt-1 text-xs text-gray-400">
+                        {% if bloc.audios.exists %}
+                        <span class="flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
+                            <i class="fas fa-headphones"></i> {{ bloc.audios.count }} audio
+                        </span>
+                        {% endif %}
+                        {% if bloc.videos.exists %}
+                        <span class="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                            <i class="fas fa-video"></i> {{ bloc.videos.count }} vidéo
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
 
             {% if bloc.audios.exists %}
             <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <i class="fas fa-headphones text-purple-400"></i> Audios
             </h3>
-            <div class="audios-container grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mb-6">
+            <div class="audios-container grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
                 {% for audio in bloc.audios.all %}
-                <div class="audio-card p-3 sm:p-5 bg-white/70 rounded-xl border border-white/50 hover:border-accent-blue/80 transition-all group relative overflow-hidden" tabindex="0">
-                    <div class="audio-header flex items-center mb-3">
-                        <div class="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl flex items-center justify-center text-white font-bold text-sm mr-3 flex-shrink-0">
-                            {{ audio.order }}
+                <div class="audio-card p-4 sm:p-5 bg-white/80 rounded-xl border border-gray-100 hover:border-purple-300 hover:shadow-lg transition-all group relative overflow-hidden" tabindex="0" data-audio-url="{{ audio.file.url }}">
+                    <div class="audio-header flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                {{ audio.order }}
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-charcoal text-sm">Vocal {{ audio.order }}</h4>
+                                <p class="text-xs text-gray-400">Audio MP3</p>
+                            </div>
                         </div>
-                        <h4 class="font-semibold text-charcoal text-sm">Vocal {{ audio.order }}</h4>
+                        <div class="text-right">
+                            <span id="duration-audio-{{ audio.id }}" class="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">Chargement…</span>
+                        </div>
                     </div>
                     <audio class="w-full rounded-xl" preload="metadata" controls>
                         <source src="{{ audio.file.url }}" type="audio/mpeg">
                     </audio>
+                    <div class="audio-waveform mt-2 h-3 bg-gray-100 rounded-full overflow-hidden" id="waveform-audio-{{ audio.id }}">
+                        <div class="waveform-fill h-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-full" style="width: 0%;"></div>
+                    </div>
+                    <div class="audio-progress mt-1 flex items-center gap-2 text-xs text-gray-500">
+                        <span id="current-audio-{{ audio.id }}">0:00</span>
+                        <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="progress-fill h-full bg-purple-400 rounded-full" style="width: 0%;"></div>
+                        </div>
+                        <span id="total-audio-{{ audio.id }}">0:00</span>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -82,59 +161,177 @@
             <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <i class="fas fa-video text-blue-400"></i> Vidéos
             </h3>
-            <div class="videos-container grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
+            <div class="videos-container grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {% for video in bloc.videos.all %}
-                <div class="video-card p-3 sm:p-5 bg-white/70 rounded-xl border border-white/50 hover:border-blue-400/80 transition-all">
-                    <div class="flex items-center mb-3">
-                        <div class="w-10 h-10 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center text-white font-bold text-sm mr-3 flex-shrink-0">
-                            {{ video.order }}
+                <div class="video-card p-4 sm:p-5 bg-white/80 rounded-xl border border-gray-100 hover:border-blue-300 hover:shadow-lg transition-all" data-video-url="{{ video.file.url }}">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                {{ video.order }}
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-charcoal text-sm">Vidéo {{ video.order }}</h4>
+                                <p class="text-xs text-gray-400">Vidéo MP4</p>
+                            </div>
                         </div>
-                        <h4 class="font-semibold text-charcoal text-sm">Vidéo {{ video.order }}</h4>
+                        <div class="text-right">
+                            <span id="duration-video-{{ video.id }}" class="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">Chargement…</span>
+                        </div>
                     </div>
                     <video class="w-full rounded-xl" preload="metadata" controls>
                         <source src="{{ video.file.url }}">
                     </video>
+                    <div class="video-progress mt-2 flex items-center gap-2 text-xs text-gray-500">
+                        <span id="current-video-{{ video.id }}">0:00</span>
+                        <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="progress-fill h-full bg-blue-400 rounded-full" style="width: 0%;"></div>
+                        </div>
+                        <span id="total-video-{{ video.id }}">0:00</span>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
 
             {% if not bloc.audios.exists and not bloc.videos.exists %}
-            <div class="text-center py-8 text-gray-400">
-                <i class="fas fa-music text-4xl mb-3 opacity-50 block"></i>
+            <div class="text-center py-10 text-gray-400">
+                <i class="fas fa-inbox text-4xl mb-3 opacity-50 block"></i>
                 Aucun contenu dans ce bloc
             </div>
             {% endif %}
 
         </section>
         {% empty %}
-        <div class="text-center py-20">
-            <i class="fas fa-music text-6xl text-gray-300 mb-6"></i>
-            <h3 class="text-2xl font-bold text-charcoal mb-2">Aucun bloc disponible</h3>
+        <div class="text-center py-16">
+            <i class="fas fa-folder-open text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-bold text-charcoal mb-2">Aucun bloc disponible</h3>
             <p class="text-gray-500">Contactez l'administrateur pour ajouter du contenu.</p>
         </div>
         {% endfor %}
+
     </div>
+
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    /* --- Helpers --- */
+    const fmtTime = (sec) => {
+        if (!isFinite(sec) || isNaN(sec)) return '0:00';
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}:${String(s).padStart(2, '0')}`;
+    };
+
+    /* --- Lecteur audio exclusif + progression + durée --- */
     const audioCards = document.querySelectorAll('.audio-card');
-    
     audioCards.forEach((card, index) => {
         const audio = card.querySelector('audio');
-        card.addEventListener('click', () => {
-            audio.play();
-            // Pause autres audios
+        const progressFill = card.querySelector('.progress-fill');
+        const waveformFill = card.querySelector('.waveform-fill');
+        const currentEl = card.querySelector('[id^="current-audio-"]');
+        const totalEl = card.querySelector('[id^="total-audio-"]');
+        const durationEl = card.querySelector('[id^="duration-audio-"]');
+
+        // Durée quand méta chargée
+        audio.addEventListener('loadedmetadata', () => {
+            if (durationEl) durationEl.textContent = fmtTime(audio.duration);
+            if (totalEl) totalEl.textContent = fmtTime(audio.duration);
+        });
+
+        // Progression temps réel
+        audio.addEventListener('timeupdate', () => {
+            const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+            if (progressFill) progressFill.style.width = `${pct}%`;
+            if (waveformFill) waveformFill.style.width = `${pct}%`;
+            if (currentEl) currentEl.textContent = fmtTime(audio.currentTime);
+        });
+
+        // Clic sur la carte = play/pause (sauf sur le player natif)
+        card.addEventListener('click', (e) => {
+            if (e.target.tagName === 'AUDIO' || e.target.closest('audio')) return;
+            if (audio.paused) {
+                audio.play().catch(() => {});
+            } else {
+                audio.pause();
+            }
             audioCards.forEach((otherCard, otherIndex) => {
                 if (otherIndex !== index) {
                     otherCard.querySelector('audio').pause();
                 }
             });
-            card.classList.add('playing');
-            setTimeout(() => card.classList.remove('playing'), 2000);
+            card.classList.toggle('ring-2', !audio.paused);
+            card.classList.toggle('ring-purple-400', !audio.paused);
+            card.classList.toggle('bg-purple-50', !audio.paused);
+        });
+
+        // Fin de lecture
+        audio.addEventListener('ended', () => {
+            card.classList.remove('ring-2', 'ring-purple-400', 'bg-purple-50');
+            if (progressFill) progressFill.style.width = '0%';
+            if (waveformFill) waveformFill.style.width = '0%';
+            if (currentEl) currentEl.textContent = '0:00';
         });
     });
+
+    /* --- Vidéo : durée + progression --- */
+    const videoCards = document.querySelectorAll('.video-card');
+    videoCards.forEach((card) => {
+        const video = card.querySelector('video');
+        const progressFill = card.querySelector('.progress-fill');
+        const currentEl = card.querySelector('[id^="current-video-"]');
+        const totalEl = card.querySelector('[id^="total-video-"]');
+        const durationEl = card.querySelector('[id^="duration-video-"]');
+
+        video.addEventListener('loadedmetadata', () => {
+            if (durationEl) durationEl.textContent = fmtTime(video.duration);
+            if (totalEl) totalEl.textContent = fmtTime(video.duration);
+        });
+
+        video.addEventListener('timeupdate', () => {
+            const pct = video.duration ? (video.currentTime / video.duration) * 100 : 0;
+            if (progressFill) progressFill.style.width = `${pct}%`;
+            if (currentEl) currentEl.textContent = fmtTime(video.currentTime);
+        });
+
+        video.addEventListener('ended', () => {
+            if (progressFill) progressFill.style.width = '0%';
+            if (currentEl) currentEl.textContent = '0:00';
+        });
+    });
+
+    /* --- Compte à rebours 3 jours --- */
+    const timerEl = document.getElementById('countdown-timer');
+    if (timerEl) {
+        const deadlineStr = timerEl.dataset.deadline;
+        if (!deadlineStr) return;
+        const deadline = new Date(deadlineStr).getTime();
+
+        const fmt = (n) => String(n).padStart(2, '0');
+
+        const tick = () => {
+            const now = Date.now();
+            const diff = deadline - now;
+            if (diff <= 0) {
+                timerEl.innerHTML = '<span class="text-red-100">Expiré</span>';
+                timerEl.classList.add('bg-red-500/30', 'animate-pulse');
+                const banner = document.getElementById('countdown-banner');
+                if (banner) banner.classList.add('bg-red-500', 'from-red-500', 'to-red-600');
+                return;
+            }
+            const days = Math.floor(diff / 86400000);
+            const hours = Math.floor((diff % 86400000) / 3600000);
+            const mins = Math.floor((diff % 3600000) / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            timerEl.innerHTML = 
+                `<span class="${days > 0 ? '' : 'hidden sm:inline'}">${days}j </span>` +
+                `${fmt(hours)}h ${fmt(mins)}m ${fmt(secs)}s`;
+        };
+
+        tick();
+        const interval = setInterval(tick, 1000);
+        window.addEventListener('beforeunload', () => clearInterval(interval), { once: true });
+    }
 });
 </script>
 

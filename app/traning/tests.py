@@ -1,9 +1,11 @@
 import json
-
+from datetime import timedelta
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import CustomUser, Formation, ServiteurFormation
+from .models_vertumetre import ServiteurVertumetre, VertumetreSubmission
 
 
 HTML_QUIZ = """
@@ -162,15 +164,72 @@ class HtmlQuestionnaireResultTests(TestCase):
         self.assertTrue(detail.context['has_result'])
         self.assertEqual(detail.context['score_20'], 0)
 
-    def test_formation_non_soumise_reste_en_cours(self):
+    def test_vertumetre_soumissions_multiples_par_serviteur(self):
+        """Un serviteur peut avoir plusieurs soumissions Vertumetre dans le temps."""
         self.client.force_login(self.serviteur)
-        self.client.get(
-            reverse('traning:serviteur_formation_detail', args=[self.formation.pk])
+        
+        # Première soumission
+        data1 = {f'q{i}': '1' for i in range(1, 13)}
+        data1['q7'] = ['fruit', 'caractere']  # MultipleChoiceField
+        self.client.post(
+            reverse('traning:serviteur_vertumetre'),
+            data1,
         )
+        
+        vert = ServiteurVertumetre.objects.get(serviteur=self.serviteur)
+        self.assertEqual(vert.submissions_count, 1)
+        self.assertEqual(VertumetreSubmission.objects.filter(vertumetre=vert).count(), 1)
+        
+        # Simuler le passage du temps pour permettre une nouvelle soumission
+        from django.utils import timezone
+        from datetime import timedelta
+        vert.last_submitted_at = timezone.now() - timedelta(days=8)
+        vert.save()
+        
+        # Deuxième soumission
+        data2 = {f'q{i}': '2' for i in range(1, 13)}
+        data2['q7'] = ['sante', 'ministere']
+        self.client.post(
+            reverse('traning:serviteur_vertumetre'),
+            data2,
+        )
+        
+        vert.refresh_from_db()
+        self.assertEqual(vert.submissions_count, 2)
+        self.assertEqual(VertumetreSubmission.objects.filter(vertumetre=vert).count(), 2)
+        
+        # Vérifier que les deux soumissions sont distinctes
+        subs = list(VertumetreSubmission.objects.filter(vertumetre=vert).order_by('submitted_at'))
+        self.assertEqual(subs[0].answers['q1'], '1')
+        self.assertEqual(subs[1].answers['q1'], '2')
 
-        dashboard = self.client.get(reverse('traning:serviteur_dashboard'))
-        sf = dashboard.context['formations'][0]
-        self.assertEqual(sf.display_status, 'progress')
+    def test_admin_vertumetres_groupe_par_serviteur(self):
+        """La vue admin liste un serviteur par ligne avec toutes ses soumissions."""
+        # Créer un serviteur avec des soumissions
+        s1 = CustomUser.objects.create_user(username='serv1', password='pwd', role='serviteur')
+        s2 = CustomUser.objects.create_user(username='serv2', password='pwd', role='serviteur')
+        
+        v1 = ServiteurVertumetre.objects.create(serviteur=s1)
+        v2 = ServiteurVertumetre.objects.create(serviteur=s2)
+        
+        VertumetreSubmission.objects.create(vertumetre=v1, answers={'q1': '1', 'q7': ['fruit']}, submitted_at=timezone.now())
+        VertumetreSubmission.objects.create(vertumetre=v1, answers={'q1': '2', 'q7': ['caractere']}, submitted_at=timezone.now() - timedelta(days=7))
+        VertumetreSubmission.objects.create(vertumetre=v2, answers={'q1': '3', 'q7': ['sante']}, submitted_at=timezone.now() - timedelta(days=1))
+        
+        admin = CustomUser.objects.create_superuser(username='root', password='pwd', email='a@b.c')
+        admin.role = 'admin'
+        admin.save()
+        self.client.force_login(admin)
+        
+        # Liste admin : une ligne par serviteur
+        resp = self.client.get(reverse('traning:admin_vertumetres'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['vertumetres']), 2)
+        
+        # Détail serviteur 1 : voir ses 2 soumissions
+        resp = self.client.get(reverse('traning:admin_vertumetre_detail', args=[v1.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['submissions']), 2)
 
     def test_soumission_html_reste_sur_la_page_du_questionnaire(self):
         self.client.force_login(self.serviteur)

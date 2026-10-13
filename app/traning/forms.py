@@ -109,7 +109,7 @@ class FormationCreationForm(forms.ModelForm):
 
 
 from django.utils import timezone
-from .models_vertumetre import ServiteurVertumetre
+from .models_vertumetre import ServiteurVertumetre, VertumetreSubmission
 
 class VertumetreForm(forms.ModelForm):
     q1 = forms.ChoiceField(
@@ -243,13 +243,19 @@ class VertumetreForm(forms.ModelForm):
         answers = {k: self.cleaned_data[k] for k in self.cleaned_data if k.startswith('q')}
         vert, created = ServiteurVertumetre.objects.get_or_create(serviteur=serviteur)
 
+        # Créer une nouvelle soumission individuelle
+        VertumetreSubmission.objects.create(
+            vertumetre=vert,
+            answers=answers,
+            submitted_at=timezone.now()
+        )
+
+        # Mettre à jour les infos de synthèse sur le vertumetre principal
         vert.answers = answers
-        vert.submitted_at = timezone.now()
-
-        # Compteur : incrémenté à chaque soumission acceptée.
+        vert.last_submitted_at = timezone.now()
         vert.submissions_count = (vert.submissions_count or 0) + 1
-
         vert.save()
+
         return vert
 
 

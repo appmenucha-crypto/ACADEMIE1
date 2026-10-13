@@ -9,12 +9,12 @@ from django.urls import reverse_lazy
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.db import transaction
-from django.db.models import Count, Avg, Q
+from django.db.models import Count, Avg, Q, Max
 from django.views.decorators.http import require_POST
 from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile, Departement
 
 from .forms import ServiteurForm, FormationCreationForm, VertumetreForm
-from .models_vertumetre import ServiteurVertumetre
+from .models_vertumetre import ServiteurVertumetre, VertumetreSubmission
 
 # Admin - Compte
 from .admin_account import admin_account
@@ -32,7 +32,7 @@ def admin_dashboard(request):
     formations_count = Formation.objects.count()
     pending_actions = ServiteurFormation.objects.filter(statut=2).count()
     # Nombre de vertumètres réellement soumis (submitted_at rempli)
-    vertumetre_count = ServiteurVertumetre.objects.filter(submitted_at__isnull=False).count()
+    vertumetre_count = ServiteurVertumetre.objects.filter(last_submitted_at__isnull=False).count()
     
     # Graph data
     sf_stats = {
@@ -238,19 +238,23 @@ def api_get_serviteur(request, pk):
 def admin_vertumetres(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
-    submissions = (
+    
+    # Grouper par serviteur : un par ligne
+    vertumetres = (
         ServiteurVertumetre.objects
         .select_related('serviteur')
-        .filter(submitted_at__isnull=False)
-        .order_by('-submitted_at')
+        .prefetch_related('submissions')
+        .annotate(last_sub=Max('submissions__submitted_at'))
+        .filter(last_sub__isnull=False)
+        .order_by('-last_sub')
     )
     
     # Stats pour graphes (7 derniers jours)
     now = timezone.now()
     start_7d = now - timedelta(days=7)
     weekly_qs = (
-        ServiteurVertumetre.objects
-        .filter(submitted_at__isnull=False, submitted_at__gte=start_7d)
+        VertumetreSubmission.objects
+        .filter(submitted_at__gte=start_7d)
         .extra(select={"day": "date(submitted_at)"})
     )
     submissions_per_day = {}
@@ -265,13 +269,36 @@ def admin_vertumetres(request):
         labels.append(day.strftime('%d/%m'))
         data.append(submissions_per_day.get(day, 0))
 
-    submitted_count = submissions.count()
+    submitted_count = vertumetres.count()
+    
+    # Moyenne soumissions par serviteur
+    avg_per_serviteur = round(submitted_count / vertumetres.count(), 1) if vertumetres.count() > 0 else 0
 
     return render(request, 'admin/vertumetres.html', {
-        'submissions': submissions,
+        'vertumetres': vertumetres,
         'submitted_count': submitted_count,
+        'avg_per_serviteur': avg_per_serviteur,
         'vertumetre_labels': labels,
         'vertumetre_data': data,
+    })
+
+
+@login_required(login_url='/')
+def admin_vertumetre_detail(request, pk):
+    """Détail de toutes les soumissions d'un serviteur."""
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        return redirect('/')
+    
+    vertumetre = get_object_or_404(
+        ServiteurVertumetre.objects.select_related('serviteur').prefetch_related('submissions'),
+        pk=pk
+    )
+    
+    submissions = vertumetre.submissions.all()
+    
+    return render(request, 'admin/vertumetre_detail.html', {
+        'vertumetre': vertumetre,
+        'submissions': submissions,
     })
 
 
@@ -1055,7 +1082,10 @@ def serviteur_dashboard(request):
     total_my = len(formations)
     completed_count = sum(1 for sf in formations if sf.display_status == 'valid')
     in_progress_count = sum(1 for sf in formations if sf.display_status == 'progress')
-    score_moyen = sum(sf.score_20 for sf in formations) / len(formations) if formations else 0
+    
+    # Score moyen uniquement sur les formations soumises (qui ont un score)
+    completed_formations = [sf for sf in formations if sf.display_status in ('valid', 'failed')]
+    score_moyen = sum(sf.score_20 for sf in completed_formations) / len(completed_formations) if completed_formations else 0
     
     stats = {
         'total_available': total_available,
@@ -1364,8 +1394,11 @@ def serviteur_vertumetre(request):
 
     is_submitted = (
         not can_submit and
-        vert.submitted_at is not None
+        vert.last_submitted_at is not None
     )
+
+    # Récupérer toutes les soumissions de ce serviteur
+    all_submissions = vert.submissions.all()
 
     # =========================
     # Soumission formulaire
@@ -1392,12 +1425,13 @@ def serviteur_vertumetre(request):
         'form': form,
         'can_submit': can_submit,
         'is_submitted': is_submitted,
-        'submitted_at': vert.submitted_at,
+        'submitted_at': vert.last_submitted_at,
         'days_since_submit': (
-            (timezone.now() - vert.submitted_at).days
+            (timezone.now() - vert.last_submitted_at).days
             if is_submitted else 0
         ),
         'submissions_count': vert.submissions_count or 0,
+        'all_submissions': all_submissions,
     }
 
     return render(

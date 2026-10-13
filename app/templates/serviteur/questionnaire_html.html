@@ -52,6 +52,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!wrapper) return;
 
+    // Status toast element
+    const toast = document.createElement('div');
+    toast.id = 'html-sync-toast';
+    toast.className = 'fixed bottom-4 right-4 z-50 hidden';
+    toast.innerHTML = `
+        <div class="bg-gray-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-sm animate-slide-in">
+            <i class="fas fa-info-circle text-amber-400"></i>
+            <span class="text-sm font-medium">Veuillez répondre à toutes les questions avant de soumettre.</span>
+        </div>
+    `;
+    document.body.appendChild(toast);
+
+    const showToast = () => {
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 4000);
+    };
+
     /* ------------------------------------------------------------------
        Le HTML importé est autonome : ses boutons pilotent SON quiz
        ("Commencer le Quiz", "Suivant"...). On empêche donc toute
@@ -67,6 +84,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!control) return;
         const type = String(control.type || '').toLowerCase();
         if (type === 'button' || type === 'reset' || type === 'hidden') return;
+        
+        // Vérifier si le questionnaire est fini (détecter score)
+        const score = detectScore();
+        if (score === null) {
+            // Questionnaire pas fini : afficher toast
+            showToast();
+        }
+        
         event.preventDefault();
     }, true);
 
@@ -245,4 +270,23 @@ document.addEventListener('DOMContentLoaded', () => {
     scheduleCheck();
 });
 </script>
+
+<style>
+@keyframes slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+.animate-slide-in {
+    animation: slide-in 0.3s ease-out forwards;
+}
+#html-sync-toast.hidden {
+    display: none;
+}
+</style>
 {% endblock %}

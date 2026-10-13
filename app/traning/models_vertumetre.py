@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
+
 class ServiteurVertumetre(models.Model):
     serviteur = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -10,10 +11,10 @@ class ServiteurVertumetre(models.Model):
         limit_choices_to={'role': 'serviteur'},
         verbose_name=_("Serviteur"),
     )
-    answers = models.JSONField(default=dict, blank=True, verbose_name=_("Réponses"))
-    submitted_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Date de soumission"))
+    # Dernières réponses (pour affichage rapide)
+    answers = models.JSONField(default=dict, blank=True, verbose_name=_("Dernières réponses"))
+    last_submitted_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Dernière soumission"))
     submissions_count = models.PositiveIntegerField(default=0, verbose_name=_("Nombre de soumissions"))
-
 
     class Meta:
         verbose_name = _("Vertumètre Serviteur")
@@ -24,9 +25,29 @@ class ServiteurVertumetre(models.Model):
 
     @property
     def is_submitted_recently(self):
-        if not self.submitted_at:
+        if not self.last_submitted_at:
             return False
-        return timezone.now() - self.submitted_at < timezone.timedelta(days=7)
+        return timezone.now() - self.last_submitted_at < timezone.timedelta(days=7)
 
     def can_submit(self):
         return not self.is_submitted_recently
+
+
+class VertumetreSubmission(models.Model):
+    """Une soumission individuelle d'un vertumètre par semaine."""
+    vertumetre = models.ForeignKey(
+        ServiteurVertumetre,
+        on_delete=models.CASCADE,
+        related_name='submissions',
+        verbose_name=_("Vertumètre")
+    )
+    answers = models.JSONField(default=dict, verbose_name=_("Réponses"))
+    submitted_at = models.DateTimeField(default=timezone.now, verbose_name=_("Date de soumission"))
+
+    class Meta:
+        ordering = ['-submitted_at']
+        verbose_name = _("Soumission Vertumètre")
+        verbose_name_plural = _("Soumissions Vertumètre")
+
+    def __str__(self):
+        return f"{self.vertumetre.serviteur} - {self.submitted_at.strftime('%d/%m/%Y')}"

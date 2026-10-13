@@ -15,13 +15,8 @@
         {% with formation=item.formation status=item.status score20=item.score20 %}
 
         <div class="glass-card bg-white/60 backdrop-blur-xl border border-white/30 rounded-2xl p-5 sm:p-8 hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
-
-            {% if status == 'completed' %}
-                style="opacity: 0.6; pointer-events: none; cursor: default;"
-            {% else %}
-                onclick="window.location='{% url 'traning:serviteur_formation_detail' formation.pk %}'"
-            {% endif %}
-        >
+            {% if status == 'completed' %}class="opacity-75"{% endif %}
+            onclick="window.location='{% url 'traning:serviteur_formation_detail' formation.pk %}'">
 
             <!-- IMAGE -->
             <div class="h-28 sm:h-40 bg-gradient-to-br from-accent-blue to-blue-500 rounded-xl sm:rounded-2xl mb-4 sm:mb-6 flex items-center justify-center">

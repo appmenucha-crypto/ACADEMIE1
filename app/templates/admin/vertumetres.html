@@ -1,70 +1,111 @@
 {% extends 'admin/base.html' %}
 {% load vertumetre_extras %}
 
-{% block page_title %}Soumissions Vertumètres{% endblock %}
-{% block subtitle %}Suivi de la vie spirituelle des serviteurs.{% endblock %}
+{% block page_title %}Suivi Vertumètres{% endblock %}
+{% block subtitle %}Vue d'ensemble des soumissions hebdomadaires par serviteur.{% endblock %}
 
 {% block content %}
 
+<!-- Stats rapides -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="glass-panel rounded-2xl p-5 border border-gray-100">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-xl">
+                <i class="fas fa-users"></i>
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-gray-400 uppercase">Serviteurs actifs</p>
+                <p class="text-2xl font-bold text-charcoal">{{ vertumetres|length }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="glass-panel rounded-2xl p-5 border border-gray-100">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-gray-400 uppercase">Total soumissions</p>
+                <p class="text-2xl font-bold text-charcoal">{{ submitted_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="glass-panel rounded-2xl p-5 border border-gray-100">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-gray-400 uppercase">Moyenne/semaine</p>
+                <p class="text-2xl font-bold text-charcoal">{{ avg_per_serviteur|floatformat:1 }}</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 
+
+<!-- Liste des serviteurs -->
 <div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
-    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-        <h3 class="font-bold text-charcoal">Dernières soumissions</h3>
+    <div class="p-6 border-b border-gray-100">
+        <h3 class="font-bold text-charcoal">Historique par serviteur</h3>
     </div>
     <div class="overflow-x-auto">
         <table class="w-full text-left">
             <thead>
                 <tr class="bg-gray-50/50">
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Serviteur</th>
-                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date de soumission</th>
-                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Aperçu des réponses</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Département</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Dernière soumission</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Total</th>
                     <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Action</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-                {% for submission in submissions %}
+                {% for v in vertumetres %}
                 <tr class="hover:bg-gray-50/50 transition-all group">
                     <td class="px-6 py-5">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-sm">
-                                {{ submission.serviteur.username|slice:":2"|upper }}
+                                {{ v.serviteur.username|slice:":2"|upper }}
                             </div>
                             <div>
-                                <span class="text-sm font-bold text-charcoal block">{{ submission.serviteur.get_full_name|default:submission.serviteur.username }}</span>
-                                <span class="text-xs text-gray-500">@{{ submission.serviteur.username }}</span>
+                                <span class="text-sm font-bold text-charcoal block">{{ v.serviteur.get_full_name|default:v.serviteur.username }}</span>
+                                <span class="text-xs text-gray-500">@{{ v.serviteur.username }}</span>
                             </div>
                         </div>
                     </td>
                     <td class="px-6 py-5 text-sm text-gray-600">
-                        {{ submission.submitted_at|date:"d/m/Y H:i" }}
+                        {% if v.serviteur.departement %}
+                            <span class="px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-semibold">{{ v.serviteur.departement.name }}</span>
+                        {% else %}
+                            <span class="text-gray-400 text-xs">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-5 text-sm text-gray-600">
+                        {% if v.last_sub %}
+                            <span class="font-medium">{{ v.last_sub|date:"d/m/Y" }}</span>
+                            <span class="text-gray-400 ml-1">{{ v.last_sub|date:"H:i" }}</span>
+                        {% else %}
+                            <span class="text-gray-400">—</span>
+                        {% endif %}
                     </td>
                     <td class="px-6 py-5">
-                        <div class="flex gap-1">
-                            {% for key, val in submission.answers.items|slice:":4" %}
-                                <span class="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400" title="{{ key }}: {{ val }}">
-                                    {{ val }}
-                                </span>
-                            {% endfor %}
-                            <span class="text-xs text-gray-400 self-center">...</span>
-                        </div>
+                        <span class="px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-xs font-bold border border-purple-100">
+                            {{ v.submissions_count }}
+                        </span>
                     </td>
                     <td class="px-6 py-5 text-right">
-                        <button onclick="toggleDetails('details-{{ submission.id }}')" class="bg-accent-blue/10 text-accent-blue px-4 py-2 rounded-lg text-xs font-bold hover:bg-accent-blue hover:text-white transition-all">
-                            Voir détails
-                        </button>
+                        <a href="{% url 'traning:admin_vertumetre_detail' v.pk %}" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1 inline-flex">
+                            <i class="fas fa-history"></i> Voir l'historique
+                        </a>
                     </td>
                 </tr>
-                <tr id="details-{{ submission.id }}" class="hidden bg-gray-50/30">
-                    <td colspan="4" class="px-12 py-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {% for key, value in submission.answers.items %}
-                            <div class="p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-gray-400 uppercase mb-1">Question {{ key|slice:"1:" }}</p>
-                                <p class="text-sm text-charcoal font-medium">{{ value|get_choice_label:key }}</p>
-                            </div>
-                            {% endfor %}
-                        </div>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                        <i class="fas fa-inbox text-2xl mb-2 block"></i>
+                        Aucune soumission pour le moment.
                     </td>
                 </tr>
                 {% endfor %}
@@ -73,11 +114,58 @@
     </div>
 </div>
 
-<script>
-function toggleDetails(id) {
-    const el = document.getElementById(id);
-    el.classList.toggle('hidden');
-}
-</script>
+{% endblock %}
 
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('vertumetreChart');
+    if (!ctx) return;
+    
+    const labels = {{ vertumetre_labels|safe }};
+    const data = {{ vertumetre_data|safe }};
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Soumissions par jour',
+                data: data,
+                backgroundColor: 'rgba(139, 92, 246, 0.6)',
+                borderColor: 'rgba(139, 92, 246, 1)',
+                borderWidth: 1,
+                borderRadius: 6,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1f2937',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    padding: 12,
+                    cornerRadius: 8,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, color: '#9ca3af' },
+                    grid: { color: 'rgba(156, 163, 175, 0.1)' }
+                },
+                x: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
