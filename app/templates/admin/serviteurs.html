@@ -6,9 +6,23 @@
 {% block content %}
 <!-- Success Message -->
 {% if success_message %}
-<div id="success-toast" class="fixed top-24 right-8 z-[100] bg-success-green text-white px-6 py-4 rounded-2xl shadow-2xl animate-slide-in">
-    <i class="fas fa-check-circle mr-2"></i>{{ success_message }}
+<div id="success-toast" class="fixed top-20 right-4 left-4 sm:right-8 sm:left-auto z-[100] bg-success-green text-white px-4 py-3 rounded-xl shadow-2xl animate-slide-in flex items-start justify-between gap-3 max-w-sm sm:max-w-md" data-message="{{ success_message }}">
+    <div class="flex items-start gap-2 flex-1 min-w-0">
+        <i class="fas fa-check-circle mt-0.5 flex-shrink-0"></i>
+        <span class="text-sm sm:text-base whitespace-normal break-words" id="success-toast-text"></span>
+    </div>
+    <button onclick="document.getElementById('success-toast').classList.add('hidden')" class="flex-shrink-0 text-white/80 hover:text-white text-lg leading-none p-1 rounded" aria-label="Fermer">
+        <i class="fas fa-times"></i>
+    </button>
 </div>
+<script>
+    const toast = document.getElementById('success-toast');
+    const msg = toast.dataset.message;
+    document.getElementById('success-toast-text').innerHTML = msg.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    setTimeout(() => {
+        if (toast) toast.classList.add('hidden');
+    }, 8000);
+</script>
 {% endif %}
 
 <div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
@@ -149,13 +163,9 @@
                             <button onclick="openModal('editModal', {{ serviteur.pk }}); setTimeout(() => loadServiteurData({{ serviteur.pk }}), 100);" class="p-2 text-accent-blue hover:bg-accent-blue/10 rounded-lg transition-all">
                                 <i class="fas fa-edit text-sm"></i>
                             </button>
-                            <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer {{ serviteur.username }} ?')">
-                                {% csrf_token %}
-                                <input type="hidden" name="delete_pk" value="{{ serviteur.pk }}">
-                                <button type="submit" class="p-2 text-danger-red hover:bg-danger-red/10 rounded-lg transition-all">
-                                    <i class="fas fa-trash text-sm"></i>
-                                </button>
-                            </form>
+                            <button onclick="openDeleteModal({{ serviteur.pk }}, '{{ serviteur.username|escapejs }}')" class="p-2 text-danger-red hover:bg-danger-red/10 rounded-lg transition-all">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -246,6 +256,38 @@
     </div>
 </div>
 
+<!-- Modal Supprimer -->
+<div id="deleteModal" class="fixed inset-0 bg-black/50 z-[200] hidden items-center justify-center p-4 animate-fade-in">
+    <div class="glass-panel max-w-md w-full rounded-3xl p-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-bold text-charcoal">Confirmer la suppression</h3>
+            <button onclick="closeModal('deleteModal')" class="text-2xl text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="text-center mb-6">
+            <div class="w-16 h-16 bg-danger-red/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-3xl text-danger-red"></i>
+            </div>
+            <p class="text-lg text-charcoal mb-2">Supprimer ce serviteur ?</p>
+            <p class="text-sm text-gray-500" id="deleteModalUsername"></p>
+            <p class="text-xs text-gray-400 mt-2">Cette action est irréversible.</p>
+        </div>
+        <form method="post" id="deleteForm">
+            {% csrf_token %}
+            <input type="hidden" name="delete_pk" id="delete_pk_input">
+            <div class="flex gap-3">
+                <button type="button" onclick="closeModal('deleteModal')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-charcoal py-3 px-6 rounded-xl font-semibold transition-all">
+                    Annuler
+                </button>
+                <button type="submit" class="flex-1 bg-danger-red hover:bg-red-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg transition-all">
+                    <i class="fas fa-trash mr-2"></i>Supprimer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
@@ -267,6 +309,13 @@ function openModal(modalId, pk=null) {
 function closeModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
     document.body.style.overflow = '';
+}
+
+function openDeleteModal(pk, username) {
+    document.getElementById('delete_pk_input').value = pk;
+    document.getElementById('deleteModalUsername').textContent = username;
+    document.getElementById('deleteModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
 }
 
 function loadServiteurData(pk) {

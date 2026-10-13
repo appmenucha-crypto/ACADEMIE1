@@ -11,11 +11,29 @@
             Mon compte
         </h2>
 
-        {% if success_message %}
-            <div class="mb-4 p-3 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-200">
-                {{ success_message }}
-            </div>
-        {% endif %}
+{% if success_message %}
+<div id="success-toast" class="fixed top-20 right-4 left-4 sm:right-8 sm:left-auto z-[100] bg-success-green text-white px-4 py-3 rounded-xl shadow-2xl animate-slide-in flex items-start justify-between gap-3 max-w-sm sm:max-w-md" data-message="{{ success_message }}">
+    <div class="flex items-start gap-2 flex-1 min-w-0">
+        <i class="fas fa-check-circle mt-0.5 flex-shrink-0"></i>
+        <span class="text-sm sm:text-base whitespace-normal break-words" id="success-toast-text"></span>
+    </div>
+    <button onclick="document.getElementById('success-toast').classList.add('hidden')" class="flex-shrink-0 text-white/80 hover:text-white text-lg leading-none p-1 rounded" aria-label="Fermer">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+<script>
+    const toast = document.getElementById('success-toast');
+    const msg = toast.dataset.message;
+    document.getElementById('success-toast-text').innerHTML = msg.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    setTimeout(() => {
+        if (toast) toast.classList.add('hidden');
+    }, 8000);
+</script>
+{% endif %}
+        if (toast) toast.classList.add('hidden');
+    }, 5000);
+</script>
+{% endif %}
 
         {% if error_message %}
             <div class="mb-4 p-3 rounded-xl bg-red-100 text-red-800 border border-red-200">

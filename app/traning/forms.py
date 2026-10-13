@@ -32,9 +32,9 @@ class ServiteurFormationForm(forms.ModelForm):
 class ServiteurForm(forms.ModelForm):
     password = forms.CharField(
         label="Mot de passe",
-        widget=forms.PasswordInput(attrs={'placeholder': 'Mot de passe temporaire (sera hashé)'}),
+        widget=forms.PasswordInput(attrs={'placeholder': 'Laissez vide pour ne pas changer'}),
         required=False,
-        help_text="Laissez vide pour générer automatiquement"
+        help_text="Laissez vide pour conserver le mot de passe actuel"
     )
 
     class Meta:
@@ -54,24 +54,49 @@ class ServiteurForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={'placeholder': 'serviteur@example.com'}),
         }
     
-    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Toujours optionnels : on gère la logique dans save()
+        self.fields['departement'].required = False
+        self.fields['password'].required = False
+        self.fields['password'].help_text = "Laissez vide pour conserver le mot de passe actuel"
+        self.fields['password'].widget.attrs['placeholder'] = 'Laissez vide pour ne pas changer'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # En création (pas d'instance existante), username est requis
+        # Email est optionnel
+        if not self.instance or not self.instance.pk:
+            if not cleaned_data.get('username'):
+                self.add_error('username', "Ce champ est obligatoire pour la création.")
+        return cleaned_data
+
     def save(self, commit=True):
+        # Sauvegarder les valeurs originales pour les champs qu'on ne veut pas écraser
+        original_password = self.instance.password if self.instance.pk else None
+        original_departement = self.instance.departement_id if self.instance.pk else None
+        
         user = super().save(commit=False)
-        password_set = False
-        if self.cleaned_data['password']:
+        
+        # Ne changer le mot de passe que s'il est fourni
+        if self.cleaned_data.get('password'):
             user.set_password(self.cleaned_data['password'])
-            temp_pass = self.cleaned_data['password']
-            password_set = True
         else:
-            import random, string
-            temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
-            user.set_password(temp_pass)
+            # Garder l'ancien hash
+            if original_password:
+                user.password = original_password
+        
+        # Ne changer le département que s'il est fourni (valeur non vide)
+        departement = self.cleaned_data.get('departement')
+        if departement:
+            user.departement = departement
+        else:
+            # Garder l'ancien département
+            if original_departement:
+                user.departement_id = original_departement
         
         if commit:
             user.save()
-            # Stocker temp_pass dans instance pour view
-            if hasattr(self.instance, '_temp_password'):
-                setattr(self.instance, '_temp_password', temp_pass)
         
         user.role = 'serviteur'
         return user

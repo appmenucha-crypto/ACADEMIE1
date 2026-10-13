@@ -132,7 +132,7 @@ def admin_serviteurs(request):
             if serviteur_form.is_valid():
                 serviteur = serviteur_form.save()
                 temp_pass = getattr(serviteur, '_temp_password', 'généré')
-                success_message = f"Serviteur '{serviteur.username}' créé avec succès ! Mot de passe temporaire : **{temp_pass}** (changez-le au prochain login)"
+                success_message = f"Serviteur '{serviteur.username}' créé avec succès !"
                 serviteur_form = ServiteurForm()
             # else: errors in form
         elif 'update' in request.POST:
