@@ -98,6 +98,10 @@ body { background-color: #facc15; color: #1f2937; overflow-x: hidden; }
                 <i class="fas fa-hands-praying w-5 mr-3 text-lg"></i>
                 <span>Vertumètres</span>
             </a>
+            <a href="{% url 'traning:admin_referants' %}" class="sidebar-item-btn group flex items-center px-6 py-4 rounded-xl text-base font-semibold hover:bg-green-500/20 hover:text-green-700 hover:border-green-300 transition-all border border-transparent hover:border-green-300 bg-white/50 shadow-sm {% if request.resolver_match.url_name == 'admin_referants' %}bg-green-100 text-green-800 border-green-300 ring-2 ring-green-200/50 shadow-md{% endif %}">
+                <i class="fas fa-user-tie w-5 mr-3 text-lg"></i>
+                <span>Référents</span>
+            </a>
         </nav>
         <div class="mt-auto p-6 border-t border-yellow-200 space-y-3">
             <a href="{% url 'traning:admin_account' %}" class="w-full bg-white/70 hover:bg-white text-charcoal py-4 px-6 rounded-2xl font-bold text-lg shadow-lg border border-yellow-200 flex items-center justify-center gap-3 transition-all">

@@ -8,18 +8,18 @@
 
     <!-- Statut header -->
     <div class="mb-6">
-        {% if sf.statut == 0 %}
-            <div class="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-4 rounded-2xl flex items-center justify-between shadow-lg">
+        {% if sf.display_status == 'not_transmitted' %}
+            <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-4 rounded-2xl flex items-center justify-between shadow-lg">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                         <i class="fas fa-hourglass-end text-xl"></i>
                     </div>
                     <div>
-                        <p class="font-bold text-lg">Formation expirée</p>
-                        <p class="text-sm opacity-90">Le délai de 3 jours est dépassé — accès désactivé</p>
+                        <p class="font-bold text-lg">Questionnaire non transmis</p>
+                        <p class="text-sm opacity-90">Le délai de 3 jours est dépassé — aucun questionnaire n'a été soumis</p>
                     </div>
                 </div>
-                <span class="px-4 py-1.5 bg-white/20 rounded-full text-sm font-semibold">ÉCHOUÉ</span>
+                <span class="px-4 py-1.5 bg-white/20 rounded-full text-sm font-semibold">NON TRANSMIS</span>
             </div>
         {% elif has_result %}
             <div class="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-4 rounded-2xl flex items-center justify-between shadow-lg">

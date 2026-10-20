@@ -1,6 +1,28 @@
+import re
+
 from django import template
 
 register = template.Library()
+
+
+@register.filter
+def get_question_label(question_key):
+    """Retourne l'intitulé de la question correspondant à une clé de réponse.
+
+    Le numéro initial (« 1- », « 8. ») est retiré : il est déjà affiché
+    à côté du libellé.
+    """
+    try:
+        from traning.forms import VertumetreForm
+    except Exception:
+        return ''
+
+    field = VertumetreForm.base_fields.get(question_key)
+    if not field:
+        return ''
+
+    label = str(getattr(field, 'label', '') or '').strip()
+    return re.sub(r'^\s*\d+\s*[.\-–:]\s*', '', label).strip()
 
 
 @register.filter

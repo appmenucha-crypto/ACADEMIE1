@@ -1,0 +1,247 @@
+{% extends 'referant/base.html' %}
+
+{% block page_title %}Tableau de bord{% endblock %}
+{% block subtitle %}Suivi de vos serviteurs assignés avec statistiques{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+    transition: all 0.3s ease;
+}
+.stat-card:hover {
+    transform: translateY(-4px);
+}
+.chart-container {
+    position: relative;
+    height: 400px;
+}
+</style>
+{% endblock %}
+
+{% block serviteur_content %}
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-12">
+    <div class="stat-card bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-users text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-indigo-100 text-sm font-medium">Serviteurs assignés</p>
+                <p class="text-3xl font-bold">{{ serviteurs|length }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-book text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-blue-100 text-sm font-medium">Formations</p>
+                <p class="text-3xl font-bold">{{ formations_count }}</p>
+                <p class="text-blue-100/70 text-xs mt-1"> {{ sf_stats.submitted }} soumise{{ sf_stats.submitted|pluralize }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-emerald-100 text-sm font-medium">Validées</p>
+                <p class="text-3xl font-bold">{{ sf_stats.validated }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-play-circle text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-amber-100 text-sm font-medium">En cours</p>
+                <p class="text-3xl font-bold">{{ sf_stats.pending }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-hourglass-end text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-orange-100 text-sm font-medium">Non transmises</p>
+                <p class="text-3xl font-bold">{{ sf_stats.not_transmitted }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Doughnut Chart -->
+<div class="glass-panel p-4 sm:p-8 rounded-3xl mb-12">
+    <h2 class="text-3xl font-bold text-charcoal mb-2 flex items-center">
+        <i class="fas fa-chart-pie text-4xl text-indigo-500 mr-4"></i>Progression globale
+    </h2>
+    <p class="text-sm text-gray-500 mb-8">Répartition des {{ sf_stats.total }} formation{{ sf_stats.total|pluralize }} assignée{{ sf_stats.total|pluralize:"s" }} à vos serviteurs.</p>
+    <div class="chart-container bg-white/60 p-4 sm:p-8 rounded-3xl backdrop-blur-xl border border-white/50 mx-auto">
+        <canvas id="progressChart"></canvas>
+    </div>
+</div>
+
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-3xl font-bold text-charcoal">Mes Serviteurs</h1>
+    <a href="{% url 'traning:referant_serviteurs' %}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl font-semibold text-sm shadow-lg transition-all inline-flex items-center gap-2">
+        <i class="fas fa-user-plus"></i> Ajouter un serviteur
+    </a>
+</div>
+
+{% if serviteur_rows %}
+<!-- Mobile: cards, Desktop: table -->
+<div class="block sm:hidden space-y-3">
+    {% for row in serviteur_rows %}
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                {{ row.username|slice:":2"|upper }}
+            </div>
+            <h3 class="font-semibold text-charcoal text-sm flex-1 min-w-0 truncate">{{ row.first_name }} {{ row.last_name }}</h3>
+        </div>
+        <div class="flex items-center justify-between">
+            <div class="flex flex-wrap gap-2">
+                <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold border border-blue-100">{{ row.total }} formation{{ row.total|pluralize }}</span>
+                <span class="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold border border-emerald-100">{{ row.validated }} validée{{ row.validated|pluralize }}</span>
+                {% if row.score_moyen %}
+                <span class="px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-xs font-bold border border-purple-100">{{ row.score_moyen }}/20</span>
+                {% endif %}
+            </div>
+            <a href="{% url 'traning:referant_serviteur_detail' row.serviteur.pk %}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold text-xs transition-all">
+                Détails
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="hidden sm:block overflow-x-auto">
+    <table class="w-full">
+        <thead>
+            <tr class="bg-gray-50/50 border-b border-gray-100 text-xs">
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Serviteur</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Formations</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Validées</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Échouées</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Non transmises</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">En cours</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Score moyen</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Vertumètre</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for row in serviteur_rows %}
+            <tr class="hover:bg-indigo-50/30 transition-colors">
+                <td class="px-4 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                            {{ row.username|slice:":2"|upper }}
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-charcoal text-sm">{{ row.first_name }} {{ row.last_name }}</h3>
+                            <p class="text-xs text-gray-400">{{ row.username }}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-4 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">{{ row.total }}</span>
+                </td>
+                <td class="px-4 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold {% if row.validated %}bg-emerald-100 text-emerald-700{% else %}bg-gray-100 text-gray-400{% endif %}">{{ row.validated }}</span>
+                </td>
+                <td class="px-4 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold {% if row.failed %}bg-red-100 text-red-700{% else %}bg-gray-100 text-gray-400{% endif %}">{{ row.failed }}</span>
+                </td>
+                <td class="px-4 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold {% if row.not_transmitted %}bg-orange-100 text-orange-700{% else %}bg-gray-100 text-gray-400{% endif %}">{{ row.not_transmitted }}</span>
+                </td>
+                <td class="px-4 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold {% if row.pending %}bg-amber-100 text-amber-700{% else %}bg-gray-100 text-gray-400{% endif %}">{{ row.pending }}</span>
+                </td>
+                <td class="px-4 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold {% if row.score_moyen %}bg-purple-100 text-purple-700{% else %}bg-gray-100 text-gray-400{% endif %}">
+                        {{ row.score_moyen }}/20
+                    </span>
+                </td>
+                <td class="px-4 py-4">
+                    {% if row.vertumetre and row.vertumetre.is_submitted_recently %}
+                        <span class="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold border border-emerald-100"><i class="fas fa-check-circle mr-1"></i>À jour</span>
+                    {% elif row.vertumetre %}
+                        <span class="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold border border-amber-100"><i class="fas fa-clock mr-1"></i>À remplir</span>
+                    {% else %}
+                        <span class="px-3 py-1 bg-gray-50 text-gray-500 rounded-full text-xs font-bold border border-gray-100">Jamais rempli</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-4">
+                    <div class="flex items-center gap-2">
+                        <a href="{% url 'traning:referant_serviteur_detail' row.serviteur.pk %}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold text-xs transition-all">
+                            Détails
+                        </a>
+                        <a href="{% url 'traning:referant_serviteur_formations' row.serviteur.pk %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-3 py-1.5 rounded-lg font-semibold text-xs transition-all">
+                            Formations
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-20">
+    <i class="fas fa-users text-6xl text-gray-300 mb-6"></i>
+    <h3 class="text-2xl font-bold text-charcoal mb-2">Aucun serviteur assigné</h3>
+    <p class="text-gray-500 mb-8">Attribuez votre premier serviteur pour suivre sa progression.</p>
+    <a href="{% url 'traning:referant_serviteurs' %}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg shadow-lg transition-all inline-block">
+        <i class="fas fa-user-plus mr-2"></i>Ajouter un serviteur
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('progressChart');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Validées', 'En cours', 'Échouées', 'Non transmises'],
+                datasets: [{
+                    data: [{{ sf_stats.validated }}, {{ sf_stats.pending }}, {{ sf_stats.failed }}, {{ sf_stats.not_transmitted }}],
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.8)',
+                        'rgba(251, 191, 36, 0.8)',
+                        'rgba(239, 68, 68, 0.8)',
+                        'rgba(249, 115, 22, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(34, 197, 94, 1)',
+                        'rgba(251, 191, 36, 1)',
+                        'rgba(239, 68, 68, 1)',
+                        'rgba(249, 115, 22, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            color: '#374151'
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

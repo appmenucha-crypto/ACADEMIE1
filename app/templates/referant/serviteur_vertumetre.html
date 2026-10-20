@@ -1,0 +1,99 @@
+{% extends "referant/base.html" %}
+{% load vertumetre_extras %}
+
+{% block title %}Vertumètre — {{ serviteur.first_name }} {{ serviteur.last_name }}{% endblock %}
+{% block page_title %}Vertumètre {{ serviteur.username }}{% endblock %}
+{% block subtitle %}I - VIE DE PRIÈRE ET DE JEÛNE{% endblock %}
+
+{% block serviteur_content %}
+<div class="max-w-4xl mx-auto">
+    <p class="text-sm text-gray-500 mb-6 flex items-center gap-2">
+        <i class="fas fa-info-circle text-gray-400"></i>
+        Ce Vertumètre est géré par le serviteur {{ serviteur.username }}. Seul lui-même peut le compléter ou le soumettre.
+    </p>
+
+    {% if vert.last_submitted_at %}
+    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-6 sm:p-8 rounded-3xl mb-8 shadow-2xl">
+        <i class="fas fa-check-circle text-6xl mb-4 block"></i>
+        <h2 class="text-2xl sm:text-3xl font-bold mb-2">Questionnaire soumis</h2>
+        <p class="text-lg mb-4">Date de soumission : {{ vert.last_submitted_at|date:"d/m/Y H:i" }}</p>
+        <p class="text-base">Total de {{ vert.submissions_count }} soumission{{ vert.submissions_count|pluralize }}.</p>
+    </div>
+    {% elif vert.is_submitted_recently %}
+    <div class="bg-gradient-to-r from-gray-400 to-gray-500 text-white p-6 sm:p-8 rounded-3xl mb-8 shadow-2xl">
+        <i class="fas fa-clock text-6xl mb-4 block"></i>
+        <h2 class="text-2xl sm:text-3xl font-bold mb-2">En attente de réinitialisation</h2>
+        <p class="text-base">Cette semaine déjà soumise, il sera disponible dans quelques jours.</p>
+    </div>
+    {% else %}
+    <div class="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white p-8 rounded-3xl mb-8 shadow-2xl">
+        <i class="fas fa-hands-praying text-5xl sm:text-6xl mb-4 block"></i>
+        <h2 class="text-2xl sm:text-3xl font-bold mb-2">À compléter cette semaine</h2>
+        <p class="text-base">Le serviteur n'a pas encore soumis son vertumètre.</p>
+    </div>
+    {% endif %}
+
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-charcoal flex items-center">
+            <i class="fas fa-table-list text-indigo-500 mr-3"></i>Réponses enregistrées
+        </h2>
+        <a href="{% url 'traning:referant_serviteur_detail' serviteur.pk %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-4 py-2 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2">
+            <i class="fas fa-user"></i>Fiche du serviteur
+        </a>
+    </div>
+
+    <div class="hidden sm:block overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50/50 border-b border-gray-100 text-xs">
+                    <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Question</th>
+                    <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Réponse</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% if vert.answers %}
+                {% for key, value in vert.answers.items %}
+                <tr class="hover:bg-indigo-50/30 transition-colors">
+                    <td class="px-4 py-4 text-charcoal text-sm">
+                        <span class="text-[10px] font-bold text-indigo-400 uppercase mr-2">Q{{ key|slice:"1:" }}</span>{{ key|get_question_label }}
+                    </td>
+                    <td class="px-4 py-4 text-sm text-gray-700">
+                        {% if value %}
+                            <span class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-semibold border border-indigo-100">{{ value|get_choice_label:key }}</span>
+                        {% else %}
+                            <span class="text-gray-400 italic">Non renseigné</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td colspan="2" class="px-4 py-6 text-center text-gray-500 italic">Aucune réponse enregistrée.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile -->
+    <div class="block sm:hidden space-y-3">
+        {% if vert.answers %}
+        {% for key, value in vert.answers.items %}
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p class="font-medium text-charcoal text-sm mb-2">
+                <span class="text-[10px] font-bold text-indigo-400 uppercase mr-2">Q{{ key|slice:"1:" }}</span>{{ key|get_question_label }}
+            </p>
+            {% if value %}
+                <span class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-semibold border border-indigo-100">{{ value|get_choice_label:key }}</span>
+            {% else %}
+                <span class="text-gray-400 italic text-xs">Non renseigné</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-center py-10">
+            <i class="fas fa-inbox text-5xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500 italic">Aucune réponse enregistrée.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

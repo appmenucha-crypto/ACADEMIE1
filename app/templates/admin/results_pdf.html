@@ -55,6 +55,7 @@
         .statut-valide { color: #065F46; background: #D1FAE5; }
         .statut-echec { color: #B91C1C; background: #FEE2E2; }
         .statut-cours { color: #B45309; background: #FEF3C7; }
+        .statut-non-transmis { color: #9A3412; background: #FFEDD5; }
         .footer { margin-top: 18pt; text-align: center; font-size: 8pt; color: #9CA3AF; border-top: 1px solid #E5E7EB; padding-top: 8pt; }
         .muted { color: #6B7280; font-size: 8.5pt; }
     </style>
@@ -86,8 +87,8 @@
             <td>{{ res.date_debut|date:"d/m/Y H:i"|default:"—" }}</td>
             <td>{{ res.date_soumission|date:"d/m/Y H:i"|default:"—" }}</td>
             <td>
-                <span class="statut {% if res.statut == 1 %}statut-valide{% elif res.statut == 0 %}statut-echec{% else %}statut-cours{% endif %}">
-                    {% if res.statut == 1 %}Validé{% elif res.statut == 0 %}Échec{% else %}En cours{% endif %}
+                <span class="statut {% if res.statut == 1 %}statut-valide{% elif res.statut == 0 %}statut-echec{% elif res.statut == 3 %}statut-non-transmis{% else %}statut-cours{% endif %}">
+                    {% if res.statut == 1 %}Validé{% elif res.statut == 0 %}Échec{% elif res.statut == 3 %}Non transmis{% else %}En cours{% endif %}
                 </span>
             </td>
         </tr>

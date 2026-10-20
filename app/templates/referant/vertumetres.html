@@ -1,0 +1,62 @@
+{% extends "referant/base.html" %}
+
+{% block page_title %}Vertumètres{% endblock %}
+{% block subtitle %}Suivi des vertumètres de vos serviteurs{% endblock %}
+
+{% block serviteur_content %}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-3xl font-bold text-charcoal flex items-center">
+        <i class="fas fa-hands-praying text-indigo-500 mr-3"></i>Vertumètres
+    </h1>
+    <a href="{% url 'traning:referant_dashboard' %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-4 py-2 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2">
+        <i class="fas fa-tachometer-alt"></i>Tableau de bord
+    </a>
+</div>
+
+{% if serviteurs %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for s in serviteurs %}
+    <div class="glass-panel p-6 rounded-3xl flex flex-col">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                {{ s.username|slice:":2"|upper }}
+            </div>
+            <div class="min-w-0">
+                <h3 class="font-bold text-charcoal text-sm truncate">{{ s.first_name }} {{ s.last_name }}</h3>
+                <p class="text-xs text-gray-400 truncate">{{ s.username }}</p>
+            </div>
+        </div>
+
+        <div class="flex-1">
+            {% if s.vert and s.vert.last_submitted_at %}
+            <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-100 inline-block mb-3">
+                <i class="fas fa-check-circle mr-1"></i>Soumis le {{ s.vert.last_submitted_at|date:"d/m/Y" }}
+            </span>
+            <p class="text-xs text-gray-500">{{ s.vert.submissions_count }} soumission{{ s.vert.submissions_count|pluralize }} au total.</p>
+            {% elif s.vert and s.vert.is_submitted_recently %}
+            <span class="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold border border-amber-100 inline-block mb-3">
+                <i class="fas fa-clock mr-1"></i>À remplir
+            </span>
+            <p class="text-xs text-gray-500">Aucune soumission récente.</p>
+            {% else %}
+            <span class="px-3 py-1 bg-gray-50 text-gray-500 rounded-full text-xs font-bold border border-gray-100 inline-block mb-3">
+                <i class="fas fa-inbox mr-1"></i>Jamais rempli
+            </span>
+            <p class="text-xs text-gray-500">Aucune soumission enregistrée.</p>
+            {% endif %}
+        </div>
+
+        <a href="{% url 'traning:referant_serviteur_vertumetre' s.pk %}" class="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-semibold text-center transition-all">
+            Consulter
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20">
+    <i class="fas fa-hands-praying text-6xl text-gray-300 mb-6"></i>
+    <h3 class="text-2xl font-bold text-charcoal mb-2">Aucun vertumètre</h3>
+    <p class="text-gray-500">Les vertumètres apparaîtront ici dès qu'un de vos serviteurs en aura un.</p>
+</div>
+{% endif %}
+{% endblock %}

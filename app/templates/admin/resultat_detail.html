@@ -1,0 +1,356 @@
+{% extends 'admin/base.html' %}
+{% load vertumetre_extras %}
+
+{% block page_title %}Résultats — {{ serviteur.get_full_name|default:serviteur.username }}{% endblock %}
+{% block subtitle %}Questionnaires transmis et vertumètre du serviteur.{% endblock %}
+
+{% block content %}
+
+<!-- Retour -->
+<div class="mb-6">
+    <a href="{% url 'traning:admin_results' %}"
+       class="inline-flex items-center gap-2 text-sm font-semibold text-accent-blue hover:underline">
+        <i class="fas fa-arrow-left"></i> Retour aux résultats
+    </a>
+</div>
+
+<!-- ===================================================== -->
+<!-- EN-TÊTE : INFORMATIONS DU SERVITEUR                      -->
+<!-- ===================================================== -->
+
+<div class="glass-panel rounded-2xl overflow-hidden border border-gray-100 mb-8">
+
+    <div class="bg-gradient-to-r from-accent-blue to-emerald-600 text-white p-6 sm:p-8">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-5">
+            <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center font-bold text-xl flex-shrink-0 overflow-hidden">
+                {% if serviteur.profile_photo %}
+                    <img src="{{ serviteur.profile_photo.url }}" alt="{{ serviteur.get_full_name }}" class="w-full h-full object-cover">
+                {% else %}
+                    {{ serviteur.username|slice:":2"|upper }}
+                {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl sm:text-2xl font-bold mb-1 truncate">
+                    {{ serviteur.get_full_name|default:serviteur.username }}
+                </h1>
+                <p class="text-sm opacity-90">
+                    @{{ serviteur.username }}
+                    {% if serviteur.referant %} · Référent : {{ serviteur.referant.get_full_name|default:serviteur.referant.username }}{% endif %}
+                </p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                {% if serviteur.is_active %}
+                    <span class="px-3 py-1.5 bg-emerald-500/25 border border-emerald-300/40 rounded-xl text-xs font-bold">
+                        <i class="fas fa-circle text-[0.5rem] mr-1"></i>Actif
+                    </span>
+                {% else %}
+                    <span class="px-3 py-1.5 bg-gray-500/30 border border-gray-300/30 rounded-xl text-xs font-bold">
+                        <i class="fas fa-circle text-[0.5rem] mr-1"></i>Inactif
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="p-6 sm:p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-envelope text-accent-blue mt-1"></i>
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">E-mail</p>
+                <p class="text-sm text-charcoal truncate">{{ serviteur.email|default:"Non renseigné" }}</p>
+            </div>
+        </div>
+        <div class="flex items-start gap-3">
+            <i class="fas fa-phone text-accent-blue mt-1"></i>
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Téléphone</p>
+                <p class="text-sm text-charcoal truncate">{{ serviteur.phone_number|default:"Non renseigné" }}</p>
+            </div>
+        </div>
+        <div class="flex items-start gap-3">
+            <i class="fas fa-building text-accent-blue mt-1"></i>
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Département</p>
+                <p class="text-sm text-charcoal truncate">{% if serviteur.departement %}{{ serviteur.departement.name }}{% else %}Non renseigné{% endif %}</p>
+            </div>
+        </div>
+        <div class="flex items-start gap-3">
+            <i class="fas fa-calendar-alt text-accent-blue mt-1"></i>
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Inscrit le</p>
+                <p class="text-sm text-charcoal">{{ serviteur.date_joined|date:"d/m/Y" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================================================== -->
+<!-- STATISTIQUES                                             -->
+<!-- ===================================================== -->
+
+<div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-10">
+    <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-5 rounded-2xl shadow-lg">
+        <p class="text-blue-100 text-xs font-medium">Formations</p>
+        <p class="text-3xl font-bold">{{ stats.total }}</p>
+    </div>
+    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-5 rounded-2xl shadow-lg">
+        <p class="text-emerald-100 text-xs font-medium">Validées</p>
+        <p class="text-3xl font-bold">{{ stats.valid }}</p>
+    </div>
+    <div class="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-5 rounded-2xl shadow-lg">
+        <p class="text-amber-100 text-xs font-medium">En cours</p>
+        <p class="text-3xl font-bold">{{ stats.progress }}</p>
+    </div>
+    <div class="bg-gradient-to-br from-red-500 to-red-600 text-white p-5 rounded-2xl shadow-lg">
+        <p class="text-red-100 text-xs font-medium">Échouées</p>
+        <p class="text-3xl font-bold">{{ stats.failed }}</p>
+    </div>
+    <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-5 rounded-2xl shadow-lg">
+        <p class="text-orange-100 text-xs font-medium">Non transmises</p>
+        <p class="text-3xl font-bold">{{ stats.not_transmitted }}</p>
+    </div>
+    <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-5 rounded-2xl shadow-lg">
+        <p class="text-purple-100 text-xs font-medium">Score moyen</p>
+        <p class="text-3xl font-bold">{{ stats.score_moyen|floatformat:1 }}/20</p>
+    </div>
+</div>
+
+<!-- ===================================================== -->
+<!-- QUESTIONNAIRES TRANSMIS                                  -->
+<!-- ===================================================== -->
+
+<div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-charcoal flex items-center">
+        <i class="fas fa-list-check text-accent-blue mr-3"></i>Questionnaires transmis
+    </h2>
+    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-bold">{{ submitted_list|length }}</span>
+</div>
+
+{% if submitted_list %}
+<div class="space-y-4 mb-10">
+    {% for sf in submitted_list %}
+    <details class="glass-panel rounded-2xl overflow-hidden border border-gray-100" {% if forloop.first %}open{% endif %}>
+        <summary class="cursor-pointer list-none px-4 sm:px-6 py-4 flex items-center gap-4 hover:bg-blue-50/40 transition-colors">
+            <div class="w-10 h-10 bg-gradient-to-br from-accent-blue to-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                {{ sf.formation.name|slice:":2"|upper }}
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-bold text-charcoal text-sm truncate">{{ sf.formation.name }}</h3>
+                <p class="text-xs text-gray-400 truncate">
+                    Soumis le {{ sf.date_soumission|date:"d/m/Y H:i" }}
+                    {% if sf.has_detail %} — {{ sf.answers_correct }} bonne{{ sf.answers_correct|pluralize }} / {{ sf.answers_incorrect }} mauvaise{{ sf.answers_incorrect|pluralize }}{% endif %}
+                </p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                {% if sf.display_status == 'valid' %}
+                    <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-100">Validé</span>
+                {% else %}
+                    <span class="px-3 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold border border-red-100">Échoué</span>
+                {% endif %}
+                <span class="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-bold border border-purple-100">{{ sf.score_20|floatformat:1 }}/20</span>
+                <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+            </div>
+        </summary>
+
+        <div class="px-4 sm:px-6 pb-6 border-t border-gray-100">
+            {% if sf.has_detail %}
+                <div class="flex flex-wrap items-center gap-3 pt-4 mb-4">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Réponses :</span>
+                    <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-100">
+                        <i class="fas fa-check mr-1"></i>{{ sf.answers_correct }} bonne{{ sf.answers_correct|pluralize }}
+                    </span>
+                    <span class="px-3 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold border border-red-100">
+                        <i class="fas fa-times mr-1"></i>{{ sf.answers_incorrect }} mauvaise{{ sf.answers_incorrect|pluralize }}
+                    </span>
+                    <span class="px-3 py-1 bg-gray-50 text-gray-500 rounded-full text-xs font-bold border border-gray-100">
+                        {{ sf.answers_total }} question{{ sf.answers_total|pluralize }}
+                    </span>
+                </div>
+
+                <div class="space-y-3">
+                    {% for answer in sf.answers_detail %}
+                    <div class="rounded-xl border p-4 {% if answer.correct %}border-emerald-200 bg-emerald-50/50{% elif answer.answered %}border-red-200 bg-red-50/40{% else %}border-gray-200 bg-gray-50/40{% endif %}">
+                        <div class="flex items-start gap-3 mb-2">
+                            <span class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 {% if answer.correct %}bg-emerald-500 text-white{% elif answer.answered %}bg-red-500 text-white{% else %}bg-gray-300 text-white{% endif %}">
+                                {% if answer.correct %}<i class="fas fa-check"></i>{% elif answer.answered %}<i class="fas fa-times"></i>{% else %}{{ answer.index|add:1 }}{% endif %}
+                            </span>
+                            <p class="font-medium text-charcoal text-sm flex-1">{{ answer.question }}</p>
+                        </div>
+
+                        <div class="ml-9 space-y-1.5">
+                            {% if answer.chosen_label %}
+                                <p class="text-sm {% if answer.correct %}text-emerald-700 font-semibold{% else %}text-red-700 font-semibold{% endif %}">
+                                    <i class="fas {% if answer.correct %}fa-check-circle text-emerald-500{% else %}fa-times-circle text-red-500{% endif %} mr-1"></i>
+                                    Réponse du serviteur : {{ answer.chosen_label }}
+                                    {% if answer.correct %}<span class="text-emerald-600 font-normal">— bonne réponse</span>{% endif %}
+                                </p>
+                            {% else %}
+                                <p class="text-sm text-gray-400 italic">
+                                    <i class="fas fa-minus-circle mr-1"></i>Aucune réponse
+                                </p>
+                            {% endif %}
+
+                            {% if not answer.correct and answer.expected_label %}
+                                <p class="text-sm text-emerald-700">
+                                    <i class="fas fa-lightbulb text-emerald-500 mr-1"></i>
+                                    Réponse attendue : <span class="font-semibold">{{ answer.expected_label }}</span>
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-sm text-gray-500 italic py-6">
+                    Aucune réponse détaillée enregistrée pour ce questionnaire.
+                </p>
+            {% endif %}
+        </div>
+    </details>
+    {% endfor %}
+</div>
+{% else %}
+<div class="glass-panel rounded-2xl p-8 mb-10 text-center">
+    <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+    <p class="text-gray-500 text-sm">Ce serviteur n'a transmis aucun questionnaire.</p>
+</div>
+{% endif %}
+
+<!-- ===================================================== -->
+<!-- FORMATIONS NON TRANSMISES                              -->
+<!-- ===================================================== -->
+
+{% if not_transmitted_list %}
+<div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-charcoal flex items-center">
+        <i class="fas fa-hourglass-half text-orange-500 mr-3"></i>Formations non transmises
+    </h2>
+    <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-bold">{{ not_transmitted_list|length }}</span>
+</div>
+
+<div class="glass-panel rounded-2xl overflow-hidden border border-gray-100 mb-10">
+    <table class="w-full text-left">
+        <thead>
+            <tr class="bg-gray-50/50">
+                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Formation</th>
+                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Début</th>
+                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Statut</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for sf in not_transmitted_list %}
+            <tr class="hover:bg-gray-50/50 transition-all">
+                <td class="px-6 py-4 text-sm font-medium text-charcoal">{{ sf.formation.name }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">{{ sf.date_debut|date:"d/m/Y"|default:"—" }}</td>
+                <td class="px-6 py-4">
+                    <span class="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-bold">
+                        <i class="fas fa-hourglass-half mr-1"></i>{{ sf.statut_label }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- ===================================================== -->
+<!-- VERTUMÈTRE                                               -->
+<!-- ===================================================== -->
+
+<div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-charcoal flex items-center">
+        <i class="fas fa-hands-praying text-purple-500 mr-3"></i>Vertumètre
+    </h2>
+    {% if vertumetre %}
+        <a href="{% url 'traning:admin_vertumetre_detail' vertumetre.pk %}"
+           class="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-xl text-xs font-bold hover:bg-purple-200 transition-all">
+            Historique complet
+        </a>
+    {% endif %}
+</div>
+
+{% if vertumetre %}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="glass-panel rounded-2xl p-5">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Nombre de soumissions</p>
+        <p class="text-2xl font-bold text-charcoal">{{ vertumetre.submissions_count }}</p>
+    </div>
+    <div class="glass-panel rounded-2xl p-5">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Dernière soumission</p>
+        <p class="text-2xl font-bold text-charcoal">
+            {% if vertumetre.last_submitted_at %}
+                {{ vertumetre.last_submitted_at|date:"d/m/Y" }}
+            {% else %}
+                <span class="text-gray-300 text-lg">Jamais</span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="glass-panel rounded-2xl p-5">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Statut</p>
+        <p class="text-2xl font-bold text-charcoal">
+            {% if vertumetre.is_submitted_recently %}
+                <span class="text-emerald-600">À jour</span>
+            {% elif vertumetre.last_submitted_at %}
+                <span class="text-amber-600">À remplir</span>
+            {% else %}
+                <span class="text-gray-300 text-lg">Jamais rempli</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+{% if vertumetre_submissions %}
+<div class="space-y-4 mb-10">
+    {% for submission in vertumetre_submissions %}
+    <details class="glass-panel rounded-2xl overflow-hidden border border-gray-100" {% if forloop.first %}open{% endif %}>
+        <summary class="cursor-pointer list-none px-4 sm:px-6 py-4 flex items-center gap-4 hover:bg-purple-50/40 transition-colors">
+            <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-calendar-check"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-bold text-charcoal text-sm">
+                    Soumission du {{ submission.submitted_at|date:"d/m/Y à H:i" }}
+                </h3>
+                <p class="text-xs text-gray-400">
+                    {{ submission.answers|length }} réponse{{ submission.answers|length|pluralize }}
+                </p>
+            </div>
+            <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+        </summary>
+        <div class="px-4 sm:px-6 pb-6 border-t border-gray-100">
+            {% if submission.answers %}
+                <div class="space-y-2 pt-4">
+                    {% for key, value in submission.answers.items %}
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-purple-50 rounded-xl border border-purple-100">
+                        <div class="flex-1 min-w-0">
+                            <span class="text-[10px] font-bold text-purple-400 uppercase">Q{{ key|slice:"1:" }}</span>
+                            <p class="text-xs text-purple-600 leading-relaxed">{{ key|get_question_label }}</p>
+                        </div>
+                        <div class="text-sm font-medium text-purple-800 sm:text-right sm:max-w-[40%]">
+                            {{ value|get_choice_label:key|truncatechars:40 }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-sm text-gray-500 italic py-6">Aucune réponse enregistrée.</p>
+            {% endif %}
+        </div>
+    </details>
+    {% endfor %}
+</div>
+{% else %}
+<div class="glass-panel rounded-2xl p-8 mb-10 text-center">
+    <i class="fas fa-hands-praying text-4xl text-gray-300 mb-3"></i>
+    <p class="text-gray-500 text-sm">Aucune soumission au vertumètre pour le moment.</p>
+</div>
+{% endif %}
+{% else %}
+<div class="glass-panel rounded-2xl p-8 mb-10 text-center">
+    <i class="fas fa-hands-praying text-4xl text-gray-300 mb-3"></i>
+    <p class="text-gray-500 text-sm">Ce serviteur n'a jamais rempli son vertumètre.</p>
+</div>
+{% endif %}
+
+{% endblock %}

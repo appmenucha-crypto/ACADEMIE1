@@ -11,7 +11,7 @@
 <!-- ========================= -->
 
 {% if stats %}
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
     <div class="glass-panel p-8 text-center">
         <div class="text-3xl font-bold text-emerald-600">
@@ -40,6 +40,15 @@
         </div>
     </div>
 
+    <div class="glass-panel p-8 text-center">
+        <div class="text-3xl font-bold text-orange-600">
+            {{ stats.non_transmis }}
+        </div>
+        <div class="text-sm uppercase text-gray-500 tracking-wide">
+            Non transmis
+        </div>
+    </div>
+
 </div>
 {% endif %}
 
@@ -59,6 +68,32 @@
         <!-- FILTRES -->
         <div class="flex flex-wrap items-center gap-2">
 
+            <!-- RECHERCHE PAR NOM -->
+            <form method="get" class="flex flex-wrap items-center gap-2" style="margin:0;">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                    <input type="search" name="q" value="{{ search_query }}"
+                           placeholder="Rechercher un étudiant…"
+                           class="bg-white rounded-xl border border-gray-100 pl-8 pr-3 py-2 text-xs font-semibold text-gray-800 w-52 focus:outline-none focus:ring-2 focus:ring-accent-blue/40">
+                </div>
+                {% if filtre %}<input type="hidden" name="filtre" value="{{ filtre }}">{% endif %}
+                {% if show_averages %}<input type="hidden" name="show_averages" value="{{ show_averages }}">{% endif %}
+                {% if only_with_avg %}<input type="hidden" name="only_with_avg" value="{{ only_with_avg }}">{% endif %}
+                {% if request.GET.month %}<input type="hidden" name="month" value="{{ request.GET.month }}">{% endif %}
+                {% if request.GET.semester %}<input type="hidden" name="semester" value="{{ request.GET.semester }}">{% endif %}
+                {% if request.GET.start_date %}<input type="hidden" name="start_date" value="{{ request.GET.start_date }}">{% endif %}
+                {% if request.GET.end_date %}<input type="hidden" name="end_date" value="{{ request.GET.end_date }}">{% endif %}
+                <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700">
+                    <i class="fas fa-search mr-1"></i>Rechercher
+                </button>
+                {% if search_query %}
+                <a href="?{% if clear_query %}{{ clear_query }}{% endif %}"
+                   class="px-3 py-1.5 rounded-xl text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100">
+                    Effacer
+                </a>
+                {% endif %}
+            </form>
+
             <form method="get" class="flex flex-wrap items-center gap-2" style="margin:0;">
                 <select name="departement" class="bg-white rounded-xl border border-gray-100 px-3 py-2 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-accent-blue/40">
                     <option value="" {% if not selected_departement_id %}selected{% endif %}>Tous départements</option>
@@ -76,6 +111,7 @@
                 {% if request.GET.semester %}<input type="hidden" name="semester" value="{{ request.GET.semester }}">{% endif %}
                 {% if request.GET.start_date %}<input type="hidden" name="start_date" value="{{ request.GET.start_date }}">{% endif %}
                 {% if request.GET.end_date %}<input type="hidden" name="end_date" value="{{ request.GET.end_date }}">{% endif %}
+                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
                 <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700">
                     Filtrer
                 </button>
@@ -83,7 +119,7 @@
 
 
             <!-- TOUS -->
-            <a href="?"
+            <a href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}"
                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all
                {% if not filtre and not show_averages %}
                     bg-charcoal text-white
@@ -94,7 +130,7 @@
             </a>
 
             <!-- EN COURS -->
-            <a href="?filtre=en_cours"
+            <a href="?filtre=en_cours{% if filter_query %}&amp;{{ filter_query }}{% endif %}"
                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all
                {% if filtre == 'en_cours' %}
                     bg-amber-500 text-white
@@ -105,7 +141,7 @@
             </a>
 
             <!-- VALIDÉ -->
-            <a href="?filtre=valide"
+            <a href="?filtre=valide{% if filter_query %}&amp;{{ filter_query }}{% endif %}"
                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all
                {% if filtre == 'valide' %}
                     bg-emerald-500 text-white
@@ -116,7 +152,7 @@
             </a>
 
             <!-- ÉCHOUÉ -->
-            <a href="?filtre=echec"
+            <a href="?filtre=echec{% if filter_query %}&amp;{{ filter_query }}{% endif %}"
                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all
 {% if filtre == 'echec' %}
                     bg-red-500 text-white
@@ -126,8 +162,19 @@
                 ❌ Échoué
             </a>
 
+            <!-- NON TRANSMIS -->
+            <a href="?filtre=non_transmis{% if filter_query %}&amp;{{ filter_query }}{% endif %}"
+               class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all
+               {% if filtre == 'non_transmis' %}
+                    bg-orange-500 text-white
+               {% else %}
+                    bg-orange-100 text-orange-700 hover:bg-orange-200
+               {% endif %}">
+                ⏳ Non transmis
+            </a>
+
             <!-- MOYENNES -->
-            <a href="?show_averages=1"
+            <a href="?show_averages=1{% if filter_query %}&amp;{{ filter_query }}{% endif %}"
                class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all
                {% if show_averages == '1' %}
                     bg-indigo-600 text-white
@@ -155,6 +202,9 @@
             <input type="hidden"
                    name="show_averages"
                    value="1">
+
+            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+            {% if request.GET.departement %}<input type="hidden" name="departement" value="{{ request.GET.departement }}">{% endif %}
 
             <!-- MOIS -->
             <div>
@@ -236,7 +286,7 @@
             <!-- PDF -->
             <div>
 
-                <a href="?export=pdf&show_averages=1&month={{ selected_month }}&semester={{ selected_semester }}&start_date={{ request.GET.start_date|default:'' }}&end_date={{ request.GET.end_date|default:'' }}"
+                <a href="?export=pdf&show_averages=1&month={{ selected_month }}&semester={{ selected_semester }}&start_date={{ request.GET.start_date|default:'' }}&end_date={{ request.GET.end_date|default:'' }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if request.GET.departement %}&departement={{ request.GET.departement }}{% endif %}"
                    class="block text-center bg-indigo-700 hover:bg-indigo-800 text-white font-bold py-3 rounded-xl transition-all">
 
 
@@ -397,27 +447,33 @@
             <div class="flex flex-wrap items-center gap-2">
 
                 <!-- TOUS -->
-                <a href="?export=pdf"
+                <a href="?export=pdf{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if request.GET.departement %}&amp;departement={{ request.GET.departement }}{% endif %}"
                    class="block bg-gray-900 hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs sm:text-sm">
                     Export PDF — Tous
                 </a>
 
                 <!-- VALIDÉ -->
-                <a href="?export=pdf&filtre=valide"
+                <a href="?export=pdf&amp;filtre=valide{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if request.GET.departement %}&amp;departement={{ request.GET.departement }}{% endif %}"
                    class="block bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs sm:text-sm">
                     Validés
                 </a>
 
                 <!-- ÉCHOUÉ -->
-                <a href="?export=pdf&filtre=echec"
+                <a href="?export=pdf&amp;filtre=echec{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if request.GET.departement %}&amp;departement={{ request.GET.departement }}{% endif %}"
                    class="block bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs sm:text-sm">
                     Échecs
                 </a>
 
                 <!-- EN COURS -->
-                <a href="?export=pdf&filtre=en_cours"
+                <a href="?export=pdf&amp;filtre=en_cours{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if request.GET.departement %}&amp;departement={{ request.GET.departement }}{% endif %}"
                    class="block bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs sm:text-sm">
                     En cours
+                </a>
+
+                <!-- NON TRANSMIS -->
+                <a href="?export=pdf&amp;filtre=non_transmis{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if request.GET.departement %}&amp;departement={{ request.GET.departement }}{% endif %}"
+                   class="block bg-orange-600 hover:bg-orange-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs sm:text-sm">
+                    Non transmis
                 </a>
 
             </div>
@@ -473,15 +529,18 @@ Dates
 
                         <div class="flex items-center gap-3">
 
-                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
                                 {{ result.serviteur.username|slice:":2"|upper }}
                             </div>
 
-                            <div>
+                            <div class="min-w-0">
 
-                                <div class="text-sm font-medium text-charcoal">
+                                <a href="{% url 'traning:admin_resultat_detail' result.serviteur.pk %}"
+                                   class="text-sm font-medium text-charcoal hover:text-accent-blue transition-colors"
+                                   title="Voir le détail des questionnaires et le vertumètre">
                                     {{ result.serviteur.username }}
-                                </div>
+                                    <i class="fas fa-arrow-right text-[0.6rem] text-gray-300 ml-1"></i>
+                                </a>
 
                                 <div class="text-xs text-gray-500">
                                     {{ result.serviteur.first_name }}
@@ -526,6 +585,12 @@ Dates
 
                             <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">
                                 ❌ Échoué
+                            </span>
+
+                        {% elif result.display_statut == 3 %}
+
+                            <span class="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-bold">
+                                ⏳ Non transmis
                             </span>
 
                         {% else %}

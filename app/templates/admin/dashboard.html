@@ -6,7 +6,7 @@
 {% block content %}
 
 <!-- Cards -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6 mb-8">
     <div class="glass-panel p-4 sm:p-6 rounded-2xl border-l-4 border-emerald-400 group hover:shadow-xl transition-all">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 sm:w-14 sm:h-14 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -53,6 +53,19 @@
             </div>
         </a>
     </div>
+    <div class="glass-panel p-4 sm:p-6 rounded-2xl border-l-4 border-red-400 group hover:shadow-xl transition-all">
+        <a href="{% url 'traning:admin_results' %}?filtre=non_transmis" class="block">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 sm:w-14 sm:h-14 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-paper-plane text-lg sm:text-2xl text-red-600"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-600 font-medium">Non transmis</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900">{{ not_transmitted_count|default:"0" }}</p>
+                </div>
+            </div>
+        </a>
+    </div>
 </div>
 
 <!-- Graphiques -->
@@ -95,10 +108,10 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(ctx1, {
         type: 'doughnut',
         data: {
-            labels: ['✅ Validé', '❌ Échoué', '⏳ En cours'],
+            labels: ['✅ Validé', '❌ Échoué', '⏳ En cours', '📤 Non transmis'],
             datasets: [{
-data: [{{ sf_stats.validated|default:0 }}, {{ sf_stats.failed|default:0 }}, {{ sf_stats.pending|default:0 }}],
-                backgroundColor: ['#10B981', '#EF4444', '#3B82F6'],
+data: [{{ sf_stats.validated|default:0 }}, {{ sf_stats.failed|default:0 }}, {{ sf_stats.pending|default:0 }}, {{ sf_stats.not_transmitted|default:0 }}],
+                backgroundColor: ['#10B981', '#EF4444', '#3B82F6', '#F97316'],
                 borderWidth: 0,
                 hoverOffset: 10
             }]
@@ -118,7 +131,9 @@ data: [{{ sf_stats.validated|default:0 }}, {{ sf_stats.failed|default:0 }}, {{ s
     });
 
     // Line chart récent
-    const ctx2 = document.getElementById('recentChart').getContext('2d');
+    const recentCanvas = document.getElementById('recentChart');
+    if (recentCanvas) {
+    const ctx2 = recentCanvas.getContext('2d');
     new Chart(ctx2, {
         type: 'line',
         data: {
@@ -156,6 +171,7 @@ data: [{{ sf_stats.validated|default:0 }}, {{ sf_stats.failed|default:0 }}, {{ s
             }
         }
     });
+    }
 });
 </script>
 

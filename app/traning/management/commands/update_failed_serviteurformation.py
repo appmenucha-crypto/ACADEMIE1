@@ -7,7 +7,7 @@ from traning.models import ServiteurFormation
 
 
 class Command(BaseCommand):
-    help = "Passe en Échoué les formations expirées sans soumission."
+    help = "Passe en « Non transmis » les formations dont le délai est dépassé sans soumission."
 
     def handle(self, *args, **options):
         now = timezone.now()
@@ -24,14 +24,14 @@ class Command(BaseCommand):
             sf.date_limite = sf.date_debut + timedelta(days=3)
             sf.save(update_fields=["date_limite"])
 
-        # Passe en échec les formations expirées
+        # Passe en « Non transmis » les formations expirées sans soumission.
+        # Ce n'est pas un échec : le questionnaire n'a tout simplement pas été transmis.
         updated = ServiteurFormation.objects.filter(
             statut=2,
             date_soumission__isnull=True,
             date_limite__lte=now,
-        ).update(statut=0)
+        ).update(statut=3)
 
         self.stdout.write(
-            self.style.SUCCESS(f"{updated} formation(s) marquée(s) Échoué.")
+            self.style.SUCCESS(f"{updated} formation(s) marquée(s) « Non transmis ».")
         )
-

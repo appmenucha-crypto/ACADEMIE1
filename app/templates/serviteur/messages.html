@@ -1,0 +1,159 @@
+{% extends "serviteur/base.html" %}
+
+{% block page_title %}Messages{% endblock %}
+{% block subtitle %}Messages reçus de votre référent{% endblock %}
+
+{% block serviteur_content %}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-3xl font-bold text-charcoal flex items-center">
+        <i class="fas fa-inbox text-emerald-500 mr-3"></i>Mes messages
+    </h1>
+    <a href="{% url 'traning:serviteur_dashboard' %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-4 py-2 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2">
+        <i class="fas fa-tachometer-alt"></i>Tableau de bord
+    </a>
+</div>
+
+{% if referent %}
+<div class="glass-panel p-4 sm:p-5 rounded-2xl mb-8 flex items-center gap-4">
+    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden">
+        {% if referent.profile_photo %}
+            <img src="{{ referent.profile_photo.url }}" alt="{{ referent.get_full_name }}" class="w-full h-full object-cover">
+        {% else %}
+            {{ referent.username|slice:":2"|upper }}
+        {% endif %}
+    </div>
+    <div class="min-w-0">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Votre référent</p>
+        <p class="font-bold text-charcoal truncate">{{ referent.get_full_name|default:referent.username }}</p>
+    </div>
+    {% if referent.phone_number %}
+    <a href="tel:{{ referent.phone_number }}" class="ml-auto px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-all inline-flex items-center gap-2">
+        <i class="fas fa-phone"></i>{{ referent.phone_number }}
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if messages_recus %}
+<div class="space-y-4">
+    {% for message in messages_recus %}
+    <div class="glass-panel p-4 sm:p-6 rounded-2xl">
+        <div class="flex items-start justify-between gap-4 mb-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                    {{ message.sender.username|slice:":2"|upper }}
+                </div>
+                <div class="min-w-0">
+                    <h2 class="font-bold text-charcoal text-sm truncate">{{ message.subject }}</h2>
+                    <p class="text-xs text-gray-400 truncate">
+                        De {{ message.sender.get_full_name|default:message.sender.username }}
+                    </p>
+                </div>
+            </div>
+            <span class="text-xs text-gray-400 flex-shrink-0">{{ message.created_at|date:"d/m/Y H:i" }}</span>
+        </div>
+        <p class="text-sm text-gray-700 whitespace-pre-line">{{ message.body }}</p>
+
+        {% if message.is_read %}
+        <div class="mt-4 pt-3 border-t border-gray-100">
+            <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-100">
+                <i class="fas fa-check-double mr-1"></i>Lu
+            </span>
+        </div>
+        {% else %}
+        <div class="mt-4 pt-3 border-t border-gray-100">
+            <span class="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold border border-amber-100">
+                <i class="fas fa-envelope mr-1"></i>Nouveau
+            </span>
+        </div>
+        {% endif %}
+
+        <!-- Réponses déjà envoyées par le serviteur -->
+        {% with replies=message.reponses.all %}
+            {% if replies %}
+            <div class="mt-4 space-y-2 border-l-2 border-emerald-200 pl-4">
+                {% for reply in replies %}
+                <div class="bg-emerald-50/60 rounded-xl p-3">
+                    <div class="flex items-center justify-between gap-3 mb-1">
+                        <p class="text-xs font-bold text-emerald-700">
+                            <i class="fas fa-reply mr-1"></i>Ma réponse
+                        </p>
+                        <span class="text-[11px] text-gray-400">{{ reply.created_at|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    <p class="text-sm text-gray-700 whitespace-pre-line">{{ reply.body }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Formulaire de réponse (toujours visible : le message doit pouvoir
+             être lu et répondu sansplier/déplier) -->
+        <div class="mt-4 pt-3 border-t border-gray-100">
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <i class="fas fa-reply text-emerald-500"></i>Répondre à {{ message.sender.get_full_name|default:message.sender.username }}
+            </p>
+            <form method="post" action="{% url 'traning:serviteur_message_reply' message.pk %}" class="ref-form">
+                {% csrf_token %}
+                <textarea name="body" rows="3" maxlength="5000" required
+                          placeholder="Écrivez votre réponse…"
+                          class="w-full bg-white/70 border border-gray-200 rounded-xl px-4 py-3 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"></textarea>
+                <div class="flex items-center gap-3 mt-3">
+                    <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg transition-all inline-flex items-center gap-2">
+                        <i class="fas fa-paper-plane"></i>Envoyer la réponse
+                    </button>
+                    <span class="text-xs text-gray-400">5000 caractères maximum</span>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20">
+    <i class="fas fa-inbox text-6xl text-gray-300 mb-6"></i>
+    <h3 class="text-2xl font-bold text-charcoal mb-2">Aucun message</h3>
+    <p class="text-gray-500">
+        Seuls les messages que votre référent vous adresse
+        <span class="font-semibold text-charcoal">personnellement</span>
+        {% if referent %}({{ referent.get_full_name|default:referent.username }}){% endif %}
+        apparaissent ici. 
+    </p>
+</div>
+{% endif %}
+
+{% if messages_envoyes %}
+<div class="mt-12">
+    <h2 class="text-xl font-bold text-charcoal mb-4 flex items-center">
+        <i class="fas fa-paper-plane text-emerald-500 mr-3"></i>Mes réponses envoyées
+    </h2>
+    <div class="space-y-3">
+        {% for message in messages_envoyes %}
+        <div class="glass-panel p-4 rounded-2xl">
+            <div class="flex items-start justify-between gap-4 mb-2">
+                <p class="font-bold text-charcoal text-sm truncate">
+                    {{ message.subject }}
+                    {% if message.reply_to %}
+                        <span class="text-xs font-normal text-gray-400">— réponse à « {{ message.reply_to.subject }} »</span>
+                    {% endif %}
+                </p>
+                <span class="text-xs text-gray-400 flex-shrink-0">{{ message.created_at|date:"d/m/Y H:i" }}</span>
+            </div>
+            <p class="text-sm text-gray-600 whitespace-pre-line">{{ message.body }}</p>
+            <div class="mt-3 pt-3 border-t border-gray-100">
+                {% if message.is_read %}
+                <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-100">
+                    <i class="fas fa-check-double mr-1"></i>Lu
+                </span>
+                {% else %}
+                <span class="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold border border-amber-100">
+                    <i class="fas fa-clock mr-1"></i>Pas encore lu
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

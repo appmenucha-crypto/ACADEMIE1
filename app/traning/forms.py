@@ -55,12 +55,18 @@ class ServiteurForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.require_password = kwargs.pop('require_password', False)
         super().__init__(*args, **kwargs)
         # Toujours optionnels : on gère la logique dans save()
         self.fields['departement'].required = False
-        self.fields['password'].required = False
-        self.fields['password'].help_text = "Laissez vide pour conserver le mot de passe actuel"
-        self.fields['password'].widget.attrs['placeholder'] = 'Laissez vide pour ne pas changer'
+        self.fields['password'].required = self.require_password
+        if self.require_password:
+            self.fields['password'].help_text = "Minimum 8 caractères"
+            self.fields['password'].widget.attrs['placeholder'] = 'Mot de passe du serviteur'
+            self.fields['password'].widget.attrs['minlength'] = '8'
+        else:
+            self.fields['password'].help_text = "Laissez vide pour conserver le mot de passe actuel"
+            self.fields['password'].widget.attrs['placeholder'] = 'Laissez vide pour ne pas changer'
 
     def clean(self):
         cleaned_data = super().clean()
@@ -69,6 +75,10 @@ class ServiteurForm(forms.ModelForm):
         if not self.instance or not self.instance.pk:
             if not cleaned_data.get('username'):
                 self.add_error('username', "Ce champ est obligatoire pour la création.")
+        if self.require_password:
+            password = cleaned_data.get('password') or ''
+            if password and len(password) < 8:
+                self.add_error('password', "Le mot de passe doit contenir au moins 8 caractères.")
         return cleaned_data
 
     def save(self, commit=True):
@@ -101,6 +111,71 @@ class ServiteurForm(forms.ModelForm):
         user.role = 'serviteur'
         return user
 
+
+from django import forms
+from .models import CustomUser
+
+
+class AdminReferantForm(forms.ModelForm):
+    password = forms.CharField(
+        label="Mot de passe",
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Saisissez un mot de passe'
+        }),
+        required=True
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+            'password',
+        ]
+
+        labels = {
+            'username': "Nom d'utilisateur",
+            'first_name': "Prénom",
+            'last_name': "Nom",
+            'email': "Adresse e-mail",
+        }
+
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': "Ex. : jean.dupont"
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': "Entrez le prénom"
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': "Entrez le nom"
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': "exemple@domaine.com"
+            }),
+        }
+
+    def save(self, commit=True):
+        referant = super().save(commit=False)
+
+        # Définir le rôle du compte
+        referant.role = 'referant'
+
+        # Hacher le mot de passe avant de l'enregistrer
+        referant.set_password(self.cleaned_data['password'])
+
+        if commit:
+            referant.save()
+
+        return referant
+
 # === FORMATION AVANCÉE ===
 from django.forms import inlineformset_factory, modelformset_factory
 
@@ -127,9 +202,36 @@ AudioFormSet = inlineformset_factory(Bloc, AudioFile, form=AudioForm, extra=1, c
 class FormationCreationForm(forms.ModelForm):
     class Meta:
         model = Formation
-        fields = ['name']
+        fields = ['name', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Formation Python Avancé'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'w-5 h-5 rounded border-gray-300 text-accent-blue focus:ring-accent-blue cursor-pointer'}),
+        }
+        labels = {
+            'name': 'Nom de la Formation',
+            'is_active': 'Formation active (visible par les serviteurs)',
+        }
+        help_texts = {
+            'is_active': 'Décochez pour créer la formation sans la rendre visible aux serviteurs. Vous pourrez l’activer plus tard.',
+        }
+
+
+class FormationEditForm(forms.ModelForm):
+    """Renommage et bascule actif/inactif d'une formation existante."""
+
+    class Meta:
+        model = Formation
+        fields = ['name', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'placeholder': 'Formation Python Avancé'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'w-5 h-5 rounded border-gray-300 text-accent-blue focus:ring-accent-blue cursor-pointer'}),
+        }
+        labels = {
+            'name': 'Nom de la Formation',
+            'is_active': 'Formation active (visible par les serviteurs)',
+        }
+        help_texts = {
+            'is_active': 'Une formation inactive reste gérable par l’administration mais n’apparaît plus chez les serviteurs.',
         }
 
 

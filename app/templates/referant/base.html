@@ -1,0 +1,49 @@
+{% extends "serviteur/base.html" %}
+{% block referant_sidebar %}
+    <aside id="sidebar" class="fixed left-0 top-0 h-screen w-72 bg-gradient-to-b from-indigo-500 to-purple-600 text-white flex flex-col z-50 shadow-xl border-r-0 rounded-r-3xl -translate-x-full md:translate-x-0">
+        <div class="px-4 pt-5 pb-4 border-b border-white/20 flex flex-col items-center gap-2">
+            <img src="/media/Logo.png" alt="Logo Formation VH" class="w-20 h-20 object-contain drop-shadow-xl" style="background: none;">
+            <div class="w-14 h-14 rounded-full overflow-hidden ring-2 ring-indigo-300 shadow-lg">
+                {% if user.profile_photo %}
+                    <img src="{{ user.profile_photo.url }}" alt="{{ user.get_full_name }}" class="w-full h-full object-cover">
+                {% else %}
+                    <div class="w-full h-full bg-indigo-500 flex items-center justify-center font-bold text-lg text-white">
+                        {{ user.username|slice:":2"|upper }}
+                    </div>
+                {% endif %}
+            </div>
+            <div class="text-center">
+                <h2 class="font-bold text-base tracking-tight text-white">Espace Référent</h2>
+                <p class="text-xs font-medium text-indigo-100">{{ user.get_full_name|default:user.username }}</p>
+            </div>
+        </div>
+        <nav class="flex-1 px-4 py-3 space-y-1 overflow-y-auto">
+            <a href="{% url 'traning:referant_dashboard' %}" class="sidebar-item group flex items-center px-4 py-4 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'referant_dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt w-5 mr-4"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{% url 'traning:referant_serviteurs' %}" class="sidebar-item group flex items-center px-4 py-4 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'referant_serviteurs' %}active{% endif %}">
+                <i class="fas fa-users w-5 mr-4"></i>
+                <span>Mes Serviteurs</span>
+            </a>
+            <a href="{% url 'traning:referant_vertumetres' %}" class="sidebar-item group flex items-center px-4 py-4 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'referant_vertumetres' %}active{% endif %}">
+                <i class="fas fa-hands-praying w-5 mr-4"></i>
+                <span>Vertumètres</span>
+            </a>
+            <a href="{% url 'traning:referant_messages' %}" class="sidebar-item group flex items-center px-4 py-4 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'referant_messages' %}active{% endif %}">
+                <i class="fas fa-paper-plane w-5 mr-4"></i>
+                <span>Messages</span>
+            </a>
+        </nav>
+        {% if not serviteurs_list %}
+        <p class="px-4 py-2 text-xs text-indigo-200/60 italic">Aucun serviteur assigné.</p>
+        {% endif %}
+
+        <div class="p-4 border-t border-white/20">
+            <a href="{% url 'traning:logout' %}" class="flex items-center justify-center gap-3 w-full px-4 py-4 bg-danger-red hover:bg-red-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-danger-red/30 transition-all hover:scale-105 active:scale-95">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Déconnexion</span>
+            </a>
+        </div>
+    </aside>
+{% endblock %}

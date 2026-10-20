@@ -1,0 +1,2498 @@
+{% extends "admin/base.html" %}
+
+{% block page_title %}Gestion des référents{% endblock %}
+{% block subtitle %}Créez des référents et gérez leurs serviteurs assignés.{% endblock %}
+
+{% block content %}
+
+<!-- ===================================================== -->
+<!-- NOTIFICATIONS                                         -->
+<!-- ===================================================== -->
+
+{% if success or success_message %}
+<div id="success-toast"
+     class="notification notification-success"
+     data-message="{{ success|default:success_message|escape }}">
+    <div class="notification-content">
+        <i class="fas fa-check-circle"></i>
+        <span id="success-toast-text"></span>
+    </div>
+
+    <button type="button"
+            onclick="closeNotification('success-toast')"
+            aria-label="Fermer">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+{% endif %}
+
+{% if error or error_message %}
+<div id="error-toast"
+     class="notification notification-error"
+     data-message="{{ error|default:error_message|escape }}">
+    <div class="notification-content">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="error-toast-text"></span>
+    </div>
+
+    <button type="button"
+            onclick="closeNotification('error-toast')"
+            aria-label="Fermer">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+{% endif %}
+
+
+<!-- ===================================================== -->
+<!-- CONTENU PRINCIPAL                                     -->
+<!-- ===================================================== -->
+
+<div class="glass-panel rounded-2xl overflow-hidden border border-gray-100">
+
+    <!-- EN-TÊTE -->
+
+    <div class="page-header">
+
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-users text-accent-gold mr-2"></i>
+                Gestion des référents
+            </h1>
+
+            <p class="page-description">
+                Créez des référents, attribuez-leur des serviteurs
+                et gérez les affectations.
+            </p>
+
+            <div class="header-statistics">
+                <span class="stat-badge">
+                    <i class="fas fa-user-tie mr-2"></i>
+                    {{ referents|length }} référent{{ referents|length|pluralize }}
+                </span>
+
+                <span class="stat-badge">
+                    <i class="fas fa-user-check mr-2"></i>
+                    Gestion des serviteurs
+                </span>
+            </div>
+        </div>
+
+        <button type="button"
+                onclick="openModal('addReferentModal')"
+                class="primary-button">
+
+            <i class="fas fa-plus text-lg"></i>
+            <span>Nouveau référent</span>
+
+        </button>
+
+    </div>
+
+
+    <!-- TABLEAU DES RÉFÉRENTS -->
+
+    <div class="overflow-x-auto">
+
+        <table class="referents-table">
+
+            <thead>
+                <tr>
+                    <th class="photo-column">Profil</th>
+                    <th>Référent</th>
+                    <th>Serviteurs assignés</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for ref in referents %}
+
+                <!-- LIGNE DU RÉFÉRENT -->
+
+                <tr class="referent-row">
+
+                    <!-- AVATAR -->
+
+                    <td class="px-6 py-5">
+
+                        <div class="avatar-circle avatar-gold">
+
+                            {% if ref.first_name or ref.last_name %}
+
+                                {{ ref.first_name|slice:":1"|upper }}{{ ref.last_name|slice:":1"|upper }}
+
+                            {% else %}
+
+                                <i class="fas fa-user-tie"></i>
+
+                            {% endif %}
+
+                        </div>
+
+                    </td>
+
+
+                    <!-- INFORMATIONS -->
+
+                    <td class="px-6 py-5">
+
+                        <div class="referent-name">
+                            {{ ref.first_name }} {{ ref.last_name }}
+                        </div>
+
+                        <div class="referent-username">
+                            <i class="fas fa-at mr-1"></i>{{ ref.username }}
+                        </div>
+
+                        <div class="referent-email">
+                            <i class="fas fa-envelope mr-1"></i>
+                            {{ ref.email|default:"Adresse e-mail non renseignée" }}
+                        </div>
+
+                    </td>
+
+
+                    <!-- NOMBRE DE SERVITEURS -->
+
+                    <td class="px-6 py-5">
+
+                        <span class="servant-count">
+
+                            <i class="fas fa-users mr-2"></i>
+
+                            {{ ref.serviteurs_assignes.count }}
+
+                            serviteur{{ ref.serviteurs_assignes.count|pluralize }}
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- ACTIONS -->
+
+                    <td class="px-6 py-5 text-right">
+
+                        <div class="action-buttons">
+
+                            <button type="button"
+                                    class="action-button action-details"
+                                    onclick="toggleDetails('detail-{{ ref.pk }}', this)"
+                                    aria-expanded="false"
+                                    title="Afficher les serviteurs">
+
+                                <i class="fas fa-chevron-down"></i>
+
+                                <span class="action-label">Détails</span>
+
+                            </button>
+
+                            <button type="button"
+                                    class="action-button action-assign"
+                                    onclick="openModal('assignModal-{{ ref.pk }}')"
+                                    title="Ajouter un serviteur">
+
+                                <i class="fas fa-user-plus"></i>
+
+                                <span class="action-label">Ajouter</span>
+
+                            </button>
+
+                            <button type="button"
+                                    class="action-button action-details"
+                                    onclick="openModal('pwdModal-{{ ref.pk }}')"
+                                    title="Réinitialiser le mot de passe">
+
+                                <i class="fas fa-key"></i>
+
+                                <span class="action-label">Mot de passe</span>
+
+                            </button>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+
+
+                <!-- DÉTAILS DU RÉFÉRENT -->
+
+                <tr id="detail-{{ ref.pk }}" class="details-row hidden">
+
+                    <td colspan="4" class="details-cell">
+
+                        <div class="details-container">
+
+                            <!-- INFORMATIONS DU RÉFÉRENT -->
+
+                            <div class="referent-info-card">
+
+                                
+
+                                <div class="referent-info-main">
+
+                                    
+
+                                    <div class="referent-info-grid">
+
+                                        <div class="info-item">
+                                            <i class="fas fa-envelope"></i>
+                                            <div>
+                                                <span class="info-label">E-mail</span>
+                                                <span class="info-value">{{ ref.email|default:"Adresse e-mail non renseignée" }}</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="info-item">
+                                            <i class="fas fa-phone"></i>
+                                            <div>
+                                                <span class="info-label">Téléphone</span>
+                                                <span class="info-value">
+                                                    {% if ref.phone_number %}{{ ref.phone_number }}{% else %}Non renseigné{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="info-item">
+                                            <i class="fas fa-clock"></i>
+                                            <div>
+                                                <span class="info-label">Dernière connexion</span>
+                                                <span class="info-value">
+                                                    {% if ref.last_login %}{{ ref.last_login|date:"d/m/Y à H:i" }}{% else %}Jamais connecté{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="info-item">
+                                            <i class="fas fa-user-tag"></i>
+                                            <div>
+                                                <span class="info-label">Identifiant</span>
+                                                <span class="info-value">{{ ref.username }}</span>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="referent-info-kpis">
+
+                                        <div class="info-kpi">
+                                            <span class="info-kpi-value">{{ ref.serviteurs_assignes.count }}</span>
+                                            <span class="info-kpi-label">Serviteurs attribués</span>
+                                        </div>
+
+                                        <div class="info-kpi">
+                                            <span class="info-kpi-value">{{ ref.sf_total }}</span>
+                                            <span class="info-kpi-label">Formations suivies</span>
+                                        </div>
+
+                                        <div class="info-kpi">
+                                            <span class="info-kpi-value">{{ ref.sf_score_moyen }}/20</span>
+                                            <span class="info-kpi-label">Score moyen</span>
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- EN-TÊTE DES DÉTAILS -->
+
+                            <div class="details-header">
+
+                                <div>
+                                    <h3 class="details-title">
+                                        <i class="fas fa-list-ul text-accent-gold mr-2"></i>
+                                        Serviteurs de {{ ref.first_name }} {{ ref.last_name }}
+                                    </h3>
+
+                                    <p class="details-description">
+                                        Consultez les serviteurs associés à ce référent.
+                                    </p>
+                                </div>
+
+                                <button type="button"
+                                        class="primary-button primary-button-small"
+                                        onclick="openModal('assignModal-{{ ref.pk }}')">
+
+                                    <i class="fas fa-user-plus"></i>
+                                    Ajouter
+
+                                </button>
+
+                            </div>
+
+
+                            <!-- TABLEAU DES SERVITEURS -->
+
+                            <div class="overflow-x-auto">
+
+                                <table class="servants-table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Serviteur</th>
+                                            <th>Nom d'utilisateur</th>
+                                            <th>Département</th>
+                                            <th>Téléphone</th>
+                                            <th>Statut</th>
+                                            <th>Formations</th>
+                                            <th>Score moyen</th>
+                                            <th>Inscrit le</th>
+                                            <th>Vertumètre</th>
+                                            <th class="text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+
+                                        {% for s in ref.serviteurs_list %}
+
+                                        <tr>
+
+                                            <td>
+                                                <div class="servant-profile">
+
+                                                    <div class="avatar-circle avatar-purple">
+                                                        {% if s.profile_photo %}
+                                                            <img src="{{ s.profile_photo.url }}" alt="{{ s.get_full_name }}">
+                                                        {% elif s.first_name or s.last_name %}
+                                                            {{ s.first_name|slice:":1"|upper }}{{ s.last_name|slice:":1"|upper }}
+                                                        {% else %}
+                                                            <i class="fas fa-user"></i>
+                                                        {% endif %}
+                                                    </div>
+
+                                                    <div class="servant-identity">
+                                                        <span class="font-semibold text-charcoal">
+                                                            {{ s.get_full_name|default:"Non renseigné" }}
+                                                        </span>
+                                                        <span class="servant-subtitle">
+                                                            N° {{ s.pk }}
+                                                        </span>
+                                                    </div>
+
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                <span class="username-badge">
+                                                    @{{ s.username }}
+                                                </span>
+                                            </td>
+
+                                            <td>
+
+                                                {% if s.departement %}
+
+                                                    <span class="department-badge">
+                                                        {{ s.departement.name }}
+                                                    </span>
+
+                                                {% else %}
+
+                                                    <span class="text-gray-400">
+                                                        Non renseigné
+                                                    </span>
+
+                                                {% endif %}
+
+                                            </td>
+
+                                            <td>
+                                                {% if s.phone_number %}
+                                                    <span class="text-charcoal">{{ s.phone_number }}</span>
+                                                {% else %}
+                                                    <span class="text-gray-400">Non renseigné</span>
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {% if s.is_active %}
+                                                    <span class="status-badge status-badge-active">
+                                                        <i class="fas fa-circle"></i>Actif
+                                                    </span>
+                                                {% else %}
+                                                    <span class="status-badge status-badge-inactive">
+                                                        <i class="fas fa-circle"></i>Inactif
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                <div class="formation-badges">
+                                                    <span class="formation-badge formation-badge-total">
+                                                        {{ s.sf_total }} au total
+                                                    </span>
+                                                    {% if s.sf_valid %}
+                                                        <span class="formation-badge formation-badge-valid">
+                                                            {{ s.sf_valid }} validée{{ s.sf_valid|pluralize }}
+                                                        </span>
+                                                    {% endif %}
+                                                    {% if s.sf_progress %}
+                                                        <span class="formation-badge formation-badge-progress">
+                                                            {{ s.sf_progress }} en cours
+                                                        </span>
+                                                    {% endif %}
+                                                    {% if s.sf_not_transmitted %}
+                                                        <span class="formation-badge formation-badge-pending">
+                                                            {{ s.sf_not_transmitted }} Non transmis
+                                                        </span>
+                                                    {% endif %}
+                                                    {% if s.sf_failed %}
+                                                        <span class="formation-badge formation-badge-failed">
+                                                            {{ s.sf_failed }} échouée{{ s.sf_failed|pluralize }}
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                <span class="username-badge score-badge">
+                                                    {{ s.sf_score_moyen }}/20
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                <span class="text-gray-500">{{ s.date_joined|date:"d/m/Y" }}</span>
+                                            </td>
+
+                                            <td>
+                                                {% if s.vertumetre and s.vertumetre.last_submitted_at %}
+                                                    <span class="status-badge status-badge-active">
+                                                        <i class="fas fa-check"></i>{{ s.vertumetre.last_submitted_at|date:"d/m/Y" }}
+                                                    </span>
+                                                {% elif s.vertumetre %}
+                                                    <span class="status-badge status-badge-pending">
+                                                        <i class="fas fa-clock"></i>À remplir
+                                                    </span>
+                                                {% else %}
+                                                    <span class="text-gray-400">Jamais rempli</span>
+                                                {% endif %}
+                                            </td>
+
+                                            <td class="text-right">
+
+                                                <div class="action-buttons action-buttons-right">
+
+                                                 
+
+                                                    <form method="post"
+                                                          action="{% url 'admin:traning_customuser_delete' s.pk %}"
+                                                          class="inline"
+                                                          onsubmit="return confirm('Voulez-vous vraiment supprimer le serviteur {{ s.username|escapejs }} ?');">
+
+                                                        {% csrf_token %}
+
+                                                        <button type="submit"
+                                                                class="icon-button delete-button"
+                                                                title="Supprimer le serviteur"
+                                                                aria-label="Supprimer {{ s.username }}">
+
+                                                            <i class="fas fa-trash"></i>
+
+                                                        </button>
+
+                                                    </form>
+
+                                                </div>
+
+                                            </td>
+
+                                        </tr>
+
+                                        {% empty %}
+
+                                        <tr>
+                                            <td colspan="10" class="empty-servants">
+
+                                                <i class="fas fa-user-slash"></i>
+
+                                                <p>Aucun serviteur n'est assigné à ce référent.</p>
+
+                                                <button type="button"
+                                                        onclick="openModal('assignModal-{{ ref.pk }}')"
+                                                        class="text-accent-gold font-semibold hover:underline">
+
+                                                    Ajouter le premier serviteur
+
+                                                </button>
+
+                                            </td>
+                                        </tr>
+
+                                        {% endfor %}
+
+                                    </tbody>
+
+                                </table>
+
+
+
+
+
+                {% empty %}
+
+                <tr>
+                    <td colspan="4" class="empty-state">
+
+                        <div class="empty-state-icon">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+
+                        <h3>Aucun référent pour le moment</h3>
+
+                        <p>
+                            Commencez par créer un référent pour pouvoir
+                            lui attribuer des serviteurs.
+                        </p>
+
+                        <button type="button"
+                                onclick="openModal('addReferentModal')"
+                                class="primary-button empty-state-button">
+
+                            <i class="fas fa-plus"></i>
+                            Créer le premier référent
+
+                        </button>
+
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+<!-- ===================================================== -->
+<!-- MODALES D'ATTRIBUTION (hors tableau pour affichage)    -->
+<!-- ===================================================== -->
+
+{% for ref in referents %}
+
+                <div id="assignModal-{{ ref.pk }}"
+                     class="custom-modal hidden"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-labelledby="assign-title-{{ ref.pk }}">
+
+                    <div class="modal-backdrop"
+                         onclick="closeModal('assignModal-{{ ref.pk }}')">
+                    </div>
+
+                    <div class="modal-content">
+
+                        <div class="modal-header">
+
+                            <div class="modal-icon modal-icon-green">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+
+                            <div>
+                                <h2 id="assign-title-{{ ref.pk }}"
+                                    class="modal-title">
+                                    Ajouter un serviteur
+                                </h2>
+
+                                <p class="modal-description">
+                                    Référent : {{ ref.username }}
+                                </p>
+                            </div>
+
+                            <button type="button"
+                                    class="modal-close"
+                                    onclick="closeModal('assignModal-{{ ref.pk }}')"
+                                    aria-label="Fermer">
+
+                                <i class="fas fa-times"></i>
+
+                            </button>
+
+                        </div>
+
+
+                        <form method="post" class="modal-form">
+
+                            {% csrf_token %}
+
+                            <input type="hidden"
+                                   name="assign_referant"
+                                   value="{{ ref.pk }}">
+
+                            <div class="form-group">
+                                <label for="assign_search_{{ ref.pk }}">
+                                    Rechercher un serviteur
+                                </label>
+                                <div class="search-field">
+                                    <i class="fas fa-search"></i>
+                                    <input type="search"
+                                           id="assign_search_{{ ref.pk }}"
+                                           class="form-control"
+                                           autocomplete="off"
+                                           placeholder="Nom d'utilisateur, prénom, nom…">
+                                    <button type="button"
+                                            class="search-clear hidden"
+                                            data-clear-for="assign_search_{{ ref.pk }}"
+                                            aria-label="Effacer la recherche">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <small class="field-help" id="assign_search_count_{{ ref.pk }}"></small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="assign_serviteur_pk_{{ ref.pk }}">
+                                    Ajouter un serviteur existant
+                                </label>
+                                <select name="assign_serviteur_pk" id="assign_serviteur_pk_{{ ref.pk }}"
+                                        class="form-control">
+                                    <option value="">— Sélectionner un serviteur non attribué —</option>
+                                    {% for s in serviteurs %}
+                                    <option value="{{ s.pk }}" data-search="{{ s.username }} {{ s.first_name }} {{ s.last_name }}">
+                                        {{ s.username }} - {{ s.first_name }} {{ s.last_name }}
+                                    </option>
+                                    {% empty %}
+                                    <option value="" disabled>Tous les serviteurs sont déjà attribués</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="field-help">
+                                    Seuls les serviteurs non encore attribués à un référent apparaissent ici.
+                                </small>
+                                <small class="field-help hidden" id="assign_search_empty_{{ ref.pk }}">
+                                    Aucun serviteur ne correspond à votre recherche.
+                                </small>
+                            </div>
+
+                            <div class="form-group mt-4">
+                                <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                                    Ou créer un nouveau serviteur
+                                </label>
+                            </div>
+
+                            <div class="form-grid">
+
+                                <div class="form-group">
+                                    <label for="assign_username_{{ ref.pk }}">
+                                        Nom d'utilisateur
+                                    </label>
+
+                                    <input type="text"
+                                           id="assign_username_{{ ref.pk }}"
+                                           name="assign_username"
+                                           placeholder="Ex. jean123">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="assign_first_name_{{ ref.pk }}">
+                                        Prénom
+                                    </label>
+
+                                    <input type="text"
+                                           id="assign_first_name_{{ ref.pk }}"
+                                           name="assign_first_name"
+                                           placeholder="Prénom du serviteur">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="assign_last_name_{{ ref.pk }}">
+                                        Nom de famille
+                                    </label>
+
+                                    <input type="text"
+                                           id="assign_last_name_{{ ref.pk }}"
+                                           name="assign_last_name"
+                                           placeholder="Nom de famille">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="assign_email_{{ ref.pk }}">
+                                        Adresse e-mail
+                                    </label>
+
+                                    <input type="email"
+                                           id="assign_email_{{ ref.pk }}"
+                                           name="assign_email"
+                                           placeholder="exemple@email.com">
+                                </div>
+
+                            </div>
+
+
+                            <div class="modal-actions">
+
+                                <button type="button"
+                                        onclick="closeModal('assignModal-{{ ref.pk }}')"
+                                        class="secondary-button">
+
+                                    Annuler
+
+                                </button>
+
+                                <button type="submit"
+                                        name="assign"
+                                        class="submit-button">
+
+                                    <i class="fas fa-user-plus mr-2"></i>
+                                    Ajouter au référent
+
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+                <!-- ================================================= -->
+                <!-- MODALE : RÉINITIALISER LE MOT DE PASSE            -->
+                <!-- ================================================= -->
+
+                <div id="pwdModal-{{ ref.pk }}"
+                     class="custom-modal hidden"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-labelledby="pwd-title-{{ ref.pk }}">
+
+                    <div class="modal-backdrop"
+                         onclick="closeModal('pwdModal-{{ ref.pk }}')">
+                    </div>
+
+                    <div class="modal-content">
+
+                        <div class="modal-header">
+
+                            <div class="modal-icon modal-icon-gold">
+                                <i class="fas fa-key"></i>
+                            </div>
+
+                            <div>
+                                <h2 id="pwd-title-{{ ref.pk }}"
+                                    class="modal-title">
+                                    Nouveau mot de passe
+                                </h2>
+
+                                <p class="modal-description">
+                                    Référent : {{ ref.username }}
+                                </p>
+                            </div>
+
+                            <button type="button"
+                                    class="modal-close"
+                                    onclick="closeModal('pwdModal-{{ ref.pk }}')"
+                                    aria-label="Fermer">
+
+                                <i class="fas fa-times"></i>
+
+                            </button>
+
+                        </div>
+
+                        <form method="post" class="modal-form">
+
+                            {% csrf_token %}
+
+                            <input type="hidden"
+                                   name="reset_referant"
+                                   value="{{ ref.pk }}">
+
+                            <div class="form-group">
+                                <label for="reset_password_{{ ref.pk }}">
+                                    Nouveau mot de passe
+                                </label>
+
+                                <input type="password"
+                                       id="reset_password_{{ ref.pk }}"
+                                       name="reset_password"
+                                       class="form-control"
+                                       placeholder="8 caractères minimum"
+                                       minlength="8"
+                                       required>
+                            </div>
+
+                            <div class="form-group mt-3">
+                                <label for="reset_password_confirm_{{ ref.pk }}">
+                                    Confirmer le mot de passe
+                                </label>
+
+                                <input type="password"
+                                       id="reset_password_confirm_{{ ref.pk }}"
+                                       name="reset_password_confirm"
+                                       class="form-control"
+                                       placeholder="Répétez le mot de passe"
+                                       minlength="8"
+                                       required>
+                            </div>
+
+                            <div class="modal-actions">
+
+                                <button type="button"
+                                        onclick="closeModal('pwdModal-{{ ref.pk }}')"
+                                        class="secondary-button">
+
+                                    Annuler
+
+                                </button>
+
+                                <button type="submit"
+                                        name="reset_password"
+                                        class="submit-button submit-button-gold">
+
+                                    <i class="fas fa-save mr-2"></i>
+                                    Enregistrer
+
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+{% endfor %}
+
+    </div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- MODALE : CRÉER UN RÉFÉRENT                            -->
+<!-- ===================================================== -->
+
+<div id="addReferentModal"
+     class="custom-modal hidden"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="add-referent-title">
+
+    <div class="modal-backdrop"
+         onclick="closeModal('addReferentModal')">
+    </div>
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <div class="modal-icon modal-icon-gold">
+                <i class="fas fa-user-tie"></i>
+            </div>
+
+            <div>
+                <h2 id="add-referent-title" class="modal-title">
+                    Nouveau référent
+                </h2>
+
+                <p class="modal-description">
+                    Remplissez les informations du référent.
+                </p>
+            </div>
+
+            <button type="button"
+                    class="modal-close"
+                    onclick="closeModal('addReferentModal')"
+                    aria-label="Fermer">
+
+                <i class="fas fa-times"></i>
+
+            </button>
+
+        </div>
+
+
+        <form method="post" class="modal-form">
+
+            {% csrf_token %}
+
+            <input type="hidden" name="create_referant" value="1">
+
+            {% if form.non_field_errors %}
+                <div class="form-errors">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="form-grid referent-form-grid">
+
+                {% for field in form %}
+
+                    {% if field.name != 'role' and field.name != 'user_type' %}
+
+                        <div class="form-group {% if field.field.widget.input_type == 'checkbox' %}checkbox-group{% endif %}">
+
+                            <label for="{{ field.id_for_label }}">
+                                {{ field.label }}
+
+                                {% if field.field.required %}
+                                    <span class="required-star">*</span>
+                                {% endif %}
+                            </label>
+
+                            {{ field }}
+
+                            {% if field.help_text %}
+                                <small class="field-help">
+                                    {{ field.help_text|safe }}
+                                </small>
+                            {% endif %}
+
+                            {% if field.errors %}
+                                <div class="field-error">
+                                    {{ field.errors }}
+                                </div>
+                            {% endif %}
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="modal-actions">
+
+                <button type="button"
+                        onclick="closeModal('addReferentModal')"
+                        class="secondary-button">
+
+                    Annuler
+
+                </button>
+
+                <button type="submit"
+                        class="submit-button submit-button-gold">
+
+                    <i class="fas fa-save mr-2"></i>
+                    Créer le référent
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- STYLES                                                -->
+<!-- ===================================================== -->
+
+<style>
+
+:root {
+    --ref-gold: #C9A02C;
+    --ref-gold-dark: #A88116;
+    --ref-charcoal: #252525;
+    --ref-muted: #6B7280;
+    --ref-border: #E5E7EB;
+    --ref-green: #16A34A;
+    --ref-red: #DC2626;
+    --ref-blue: #2563EB;
+}
+
+
+/* EN-TÊTE */
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 28px;
+    flex-wrap: wrap;
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--ref-charcoal);
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+
+.page-description {
+    font-size: 14px;
+    color: var(--ref-muted);
+    margin-top: 8px;
+    line-height: 1.6;
+}
+
+.header-statistics {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    color: #4B5563;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+
+/* BOUTONS */
+
+.primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 22px;
+    border: 1px solid rgba(201, 160, 44, 0.5);
+    border-radius: 14px;
+    background: var(--ref-gold);
+    color: #171717;
+    font-weight: 800;
+    font-size: 14px;
+    box-shadow: 0 8px 20px rgba(201, 160, 44, 0.2);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.primary-button:hover {
+    background: #D9B13B;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(201, 160, 44, 0.28);
+}
+
+.primary-button-small {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    box-shadow: none;
+}
+
+.secondary-button {
+    padding: 12px 18px;
+    border: 1px solid #E5E7EB;
+    background: #F9FAFB;
+    color: #374151;
+    border-radius: 11px;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.secondary-button:hover {
+    background: #E5E7EB;
+}
+
+
+/* TABLEAU PRINCIPAL */
+
+.referents-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.referents-table thead {
+    background: #F9FAFB;
+}
+
+.referents-table th {
+    padding: 16px 24px;
+    color: #9CA3AF;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    border-top: 1px solid #F3F4F6;
+    border-bottom: 1px solid #E5E7EB;
+    white-space: nowrap;
+}
+
+.referents-table td {
+    border-bottom: 1px solid #F3F4F6;
+    vertical-align: middle;
+}
+
+.referent-row {
+    transition: background 0.2s ease;
+}
+
+.referent-row:hover {
+    background: #F8FAFC;
+}
+
+.photo-column {
+    width: 90px;
+}
+
+.referent-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ref-charcoal);
+}
+
+.referent-username {
+    margin-top: 5px;
+    color: #6B7280;
+    font-size: 12px;
+}
+
+.referent-email {
+    margin-top: 5px;
+    color: #9CA3AF;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+
+/* AVATARS */
+
+.avatar-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px #E5E7EB;
+}
+
+.avatar-gold {
+    background: linear-gradient(135deg, #FDE68A, #C9A02C);
+    color: #513B05;
+}
+
+.avatar-purple {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #C4B5FD, #8B5CF6);
+    color: white;
+    font-size: 11px;
+}
+
+
+/* COMPTEUR */
+
+.servant-count {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: #F0FDF4;
+    color: #15803D;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+
+/* ACTIONS */
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.action-buttons-right {
+    gap: 5px;
+}
+
+.action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 11px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.action-details {
+    color: #4B5563;
+    background: #F3F4F6;
+}
+
+.action-details:hover {
+    color: #111827;
+    background: #E5E7EB;
+}
+
+.action-assign {
+    color: #15803D;
+    background: #F0FDF4;
+    border-color: #DCFCE7;
+}
+
+.action-assign:hover {
+    background: #DCFCE7;
+}
+
+.action-details i {
+    transition: transform 0.2s ease;
+}
+
+.action-details[aria-expanded="true"] i {
+    transform: rotate(180deg);
+}
+
+.icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    border-radius: 9px;
+    transition: all 0.2s ease;
+    border: 0;
+    cursor: pointer;
+}
+
+.edit-button {
+    background: #EFF6FF;
+    color: #2563EB;
+}
+
+.edit-button:hover {
+    background: #DBEAFE;
+}
+
+.delete-button {
+    background: #FEF2F2;
+    color: #DC2626;
+}
+
+.delete-button:hover {
+    background: #FEE2E2;
+}
+
+
+/* DÉTAILS */
+
+.details-row {
+    background: #FFFEFA;
+}
+
+.details-row.hidden {
+    display: none;
+}
+
+.details-cell {
+    padding: 0 !important;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.details-container {
+    padding: 24px 28px 28px;
+    border-left: 4px solid var(--ref-gold);
+    background: linear-gradient(135deg, #FFFEFA, #FFFFFF);
+}
+
+.details-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.details-title {
+    color: var(--ref-charcoal);
+    font-size: 15px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.details-description {
+    margin-top: 6px;
+    color: #9CA3AF;
+    font-size: 12px;
+}
+
+.servants-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+}
+
+.servants-table th {
+    padding: 12px 15px;
+    color: #9CA3AF;
+    background: #F9FAFB;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.servants-table td {
+    padding: 13px 15px;
+    border-bottom: 1px solid #F3F4F6;
+    font-size: 12px;
+    color: #4B5563;
+}
+
+.servants-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.servants-table tbody tr:hover {
+    background: #F9FAFB;
+}
+
+.servant-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 160px;
+}
+
+.username-badge {
+    padding: 5px 8px;
+    background: #F3F4F6;
+    color: #4B5563;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.department-badge {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 7px;
+    background: #EFF6FF;
+    color: #1D4ED8;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.empty-servants {
+    text-align: center;
+    padding: 32px 15px !important;
+    color: #9CA3AF !important;
+}
+
+.empty-servants > i {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 27px;
+    color: #D1D5DB;
+}
+
+.empty-servants p {
+    margin-bottom: 10px;
+}
+
+
+/* INFORMATIONS DU RÉFÉRENT */
+
+.referent-info-card {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    margin-bottom: 24px;
+    background: white;
+    border: 1px solid var(--ref-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.referent-info-photo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 78px;
+    height: 78px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #FDE68A, #C9A02C);
+    color: #513B05;
+    font-size: 25px;
+    font-weight: 800;
+    overflow: hidden;
+}
+
+.referent-info-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.referent-info-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.referent-info-name {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    color: var(--ref-charcoal);
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 16px;
+}
+
+.info-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.info-badge i {
+    font-size: 6px;
+}
+
+.info-badge-green {
+    color: #15803D;
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+}
+
+.info-badge-gray {
+    color: #6B7280;
+    background: #F3F4F6;
+    border: 1px solid #E5E7EB;
+}
+
+.referent-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+    gap: 12px 18px;
+    margin-bottom: 16px;
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+}
+
+.info-item > i {
+    color: var(--ref-gold);
+    font-size: 13px;
+    margin-top: 3px;
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.info-item > div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.info-label {
+    color: #9CA3AF;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    color: var(--ref-charcoal);
+    font-size: 12.5px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.referent-info-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid #F3F4F6;
+}
+
+.info-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 11px 13px;
+    border-radius: 12px;
+    background: #EFF6FF;
+    border: 1px solid #DBEAFE;
+}
+
+.info-kpi-value {
+    color: #1D4ED8;
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.info-kpi-label {
+    color: #6B7280;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.info-kpi-green { background: #F0FDF4; border-color: #BBF7D0; }
+.info-kpi-green .info-kpi-value { color: #15803D; }
+.info-kpi-amber { background: #FFFBEB; border-color: #FDE68A; }
+.info-kpi-amber .info-kpi-value { color: #B45309; }
+.info-kpi-orange { background: #FFF7ED; border-color: #FED7AA; }
+.info-kpi-orange .info-kpi-value { color: #C2410C; }
+.info-kpi-purple { background: #F5F3FF; border-color: #DDD6FE; }
+.info-kpi-purple .info-kpi-value { color: #6D28D9; }
+
+
+/* LISTE DES SERVITEURS */
+
+.servant-identity {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.servant-subtitle {
+    color: #9CA3AF;
+    font-size: 10.5px;
+    font-weight: 600;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 9px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.status-badge i {
+    font-size: 6px;
+}
+
+.status-badge-active {
+    color: #15803D;
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+}
+
+.status-badge-inactive {
+    color: #6B7280;
+    background: #F3F4F6;
+    border: 1px solid #E5E7EB;
+}
+
+.status-badge-pending {
+    color: #B45309;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+}
+
+.formation-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 165px;
+}
+
+.formation-badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.formation-badge-total { color: #374151; background: #F3F4F6; }
+.formation-badge-valid { color: #15803D; background: #F0FDF4; }
+.formation-badge-progress { color: #B45309; background: #FFFBEB; }
+.formation-badge-pending { color: #C2410C; background: #FFF7ED; }
+.formation-badge-failed { color: #B91C1C; background: #FEF2F2; }
+
+.score-badge {
+    color: #6D28D9;
+    background: #F5F3FF;
+}
+
+.avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+
+/* MODALES */
+
+.custom-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.custom-modal.hidden {
+    display: none;
+}
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 570px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    background: white;
+    border-radius: 22px;
+    padding: 28px;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
+    animation: modalEnter 0.25s ease;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 22px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.modal-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    font-size: 19px;
+}
+
+.modal-icon-gold {
+    background: #FEF3C7;
+    color: #A16207;
+}
+
+.modal-icon-green {
+    background: #DCFCE7;
+    color: #15803D;
+}
+
+.modal-title {
+    color: var(--ref-charcoal);
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.modal-description {
+    color: #9CA3AF;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-left: auto;
+    border-radius: 9px;
+    background: #F9FAFB;
+    color: #6B7280;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.modal-close:hover {
+    background: #FEE2E2;
+    color: #DC2626;
+}
+
+
+/* FORMULAIRES */
+
+.modal-form {
+    width: 100%;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 14px;
+}
+
+.referent-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 7px;
+}
+
+.form-group label {
+    color: #374151;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.required-star {
+    color: #DC2626;
+}
+
+.form-group input:not([type="checkbox"]):not([type="radio"]),
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 13px;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    background: #F9FAFB;
+    color: #1F2937;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    background: white;
+    border-color: var(--ref-gold);
+    box-shadow: 0 0 0 3px rgba(201, 160, 44, 0.13);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #B0B7C3;
+}
+
+.form-group input[type="checkbox"],
+.form-group input[type="radio"] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--ref-gold);
+}
+
+.checkbox-group {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.field-help {
+    color: #9CA3AF;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.search-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-field > i {
+    position: absolute;
+    left: 13px;
+    color: #9CA3AF;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+.search-field .form-control {
+    padding-left: 34px;
+    padding-right: 34px;
+}
+
+.search-field input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.search-clear {
+    position: absolute;
+    right: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #9CA3AF;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.search-clear:hover {
+    background: #F3F4F6;
+    color: #4B5563;
+}
+
+.field-error,
+.form-errors {
+    color: #DC2626;
+    font-size: 12px;
+}
+
+.form-errors {
+    margin-bottom: 15px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #FEF2F2;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 26px;
+    padding-top: 20px;
+    border-top: 1px solid #F3F4F6;
+}
+
+.submit-button {
+    padding: 12px 17px;
+    border-radius: 11px;
+    background: #16A34A;
+    color: white;
+    font-size: 12px;
+    font-weight: 800;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.submit-button:hover {
+    background: #15803D;
+    transform: translateY(-1px);
+}
+
+.submit-button-gold {
+    background: var(--ref-gold);
+    color: #171717;
+}
+
+.submit-button-gold:hover {
+    background: #D9B13B;
+}
+
+
+/* ÉTAT VIDE */
+
+.empty-state {
+    padding: 65px 20px !important;
+    text-align: center;
+}
+
+.empty-state-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 75px;
+    height: 75px;
+    margin: 0 auto 20px;
+    border-radius: 22px;
+    background: #FFFBEB;
+    color: var(--ref-gold);
+    font-size: 28px;
+}
+
+.empty-state h3 {
+    margin-bottom: 8px;
+    color: var(--ref-charcoal);
+    font-size: 17px;
+    font-weight: 800;
+}
+
+.empty-state p {
+    max-width: 400px;
+    margin: 0 auto 22px;
+    color: #9CA3AF;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.empty-state-button {
+    margin: auto;
+}
+
+
+/* NOTIFICATIONS */
+
+.notification {
+    position: fixed;
+    top: 85px;
+    right: 24px;
+    z-index: 1200;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+    width: min(420px, calc(100vw - 32px));
+    padding: 16px;
+    border-radius: 14px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.14);
+    animation: slideIn 0.3s ease;
+}
+
+.notification-success {
+    color: #166534;
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+}
+
+.notification-error {
+    color: #991B1B;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+}
+
+.notification-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.notification-content i {
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.notification > button {
+    flex-shrink: 0;
+    padding: 3px;
+    opacity: 0.7;
+    cursor: pointer;
+}
+
+.notification > button:hover {
+    opacity: 1;
+}
+
+.notification.hidden {
+    display: none;
+}
+
+
+/* ANIMATIONS */
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalEnter {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(25px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+
+/* RESPONSIVE */
+
+@media (max-width: 768px) {
+
+    .page-header {
+        padding: 20px;
+        align-items: stretch;
+    }
+
+    .page-title {
+        font-size: 20px;
+    }
+
+    .page-header > .primary-button {
+        width: 100%;
+    }
+
+    .referents-table th,
+    .referents-table td {
+        padding: 14px;
+    }
+
+    .referents-table th {
+        font-size: 10px;
+    }
+
+    .action-buttons {
+        flex-wrap: wrap;
+    }
+
+    .action-label {
+        display: none;
+    }
+
+    .action-button {
+        width: 37px;
+        height: 37px;
+        padding: 0;
+    }
+
+    .details-container {
+        padding: 18px 14px;
+    }
+
+    .referent-info-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px;
+    }
+
+    .referent-info-photo {
+        width: 62px;
+        height: 62px;
+        font-size: 20px;
+    }
+
+    .details-header {
+        align-items: flex-start;
+    }
+
+    .details-title {
+        font-size: 13px;
+    }
+
+    .modal-content {
+        padding: 22px 18px;
+        border-radius: 18px;
+    }
+
+    .modal-title {
+        font-size: 16px;
+    }
+
+    .modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    .modal-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .notification {
+        top: 70px;
+        right: 16px;
+    }
+
+}
+
+@media (max-width: 480px) {
+
+    .form-grid,
+    .referent-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .header-statistics {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .modal-content {
+        padding: 18px 14px;
+    }
+
+    .modal-header {
+        gap: 10px;
+    }
+
+    .modal-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .empty-state {
+        padding: 40px 15px !important;
+    }
+
+}
+
+</style>
+
+
+<!-- ===================================================== -->
+<!-- JAVASCRIPT                                            -->
+<!-- ===================================================== -->
+
+<script>
+
+(function () {
+
+    // -----------------------------------------------------
+    // OUVERTURE DES MODALES
+    // -----------------------------------------------------
+
+    window.openModal = function (modalId) {
+
+        const modal = document.getElementById(modalId);
+
+        if (!modal) {
+            return;
+        }
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        const firstInput = modal.querySelector(
+            'input:not([type="hidden"]), select, textarea'
+        );
+
+        if (firstInput) {
+            setTimeout(function () {
+                firstInput.focus();
+            }, 100);
+        }
+
+    };
+
+
+    // -----------------------------------------------------
+    // FERMETURE DES MODALES
+    // -----------------------------------------------------
+
+    window.closeModal = function (modalId) {
+
+        const modal = document.getElementById(modalId);
+
+        if (!modal) {
+            return;
+        }
+
+        modal.classList.add('hidden');
+
+        const remainingModal = document.querySelector(
+            '.custom-modal:not(.hidden)'
+        );
+
+        if (!remainingModal) {
+            document.body.style.overflow = '';
+        }
+
+    };
+
+
+    // -----------------------------------------------------
+    // AFFICHAGE DES DÉTAILS
+    // -----------------------------------------------------
+
+    window.toggleDetails = function (rowId, button) {
+
+        const detailRow = document.getElementById(rowId);
+
+        if (!detailRow) {
+            return;
+        }
+
+        const isCurrentlyHidden = detailRow.classList.contains('hidden');
+
+        // Fermer les autres panneaux.
+        document.querySelectorAll('.details-row').forEach(function (row) {
+
+            row.classList.add('hidden');
+
+        });
+
+        document.querySelectorAll('.action-details').forEach(function (btn) {
+
+            btn.setAttribute('aria-expanded', 'false');
+
+        });
+
+        // Ouvrir le panneau sélectionné.
+        if (isCurrentlyHidden) {
+
+            detailRow.classList.remove('hidden');
+
+            if (button) {
+                button.setAttribute('aria-expanded', 'true');
+            }
+
+        }
+
+    };
+
+
+    // -----------------------------------------------------
+    // FERMETURE DES NOTIFICATIONS
+    // -----------------------------------------------------
+
+    window.closeNotification = function (notificationId) {
+
+        const notification = document.getElementById(notificationId);
+
+        if (notification) {
+            notification.classList.add('hidden');
+        }
+
+    };
+
+
+    // -----------------------------------------------------
+    // INITIALISATION
+    // -----------------------------------------------------
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // Les notifications utilisent textContent afin de ne pas
+        // interpréter le contenu dynamique comme du HTML.
+
+        const successToast = document.getElementById('success-toast');
+        const errorToast = document.getElementById('error-toast');
+
+        if (successToast) {
+
+            const message = successToast.dataset.message || '';
+
+            document.getElementById('success-toast-text').textContent = message;
+
+            setTimeout(function () {
+                successToast.classList.add('hidden');
+            }, 8000);
+
+        }
+
+        if (errorToast) {
+
+            const message = errorToast.dataset.message || '';
+
+            document.getElementById('error-toast-text').textContent = message;
+
+            setTimeout(function () {
+                errorToast.classList.add('hidden');
+            }, 10000);
+
+        }
+
+
+        // Fermer les modales avec la touche Échap.
+
+        document.addEventListener('keydown', function (event) {
+
+            if (event.key === 'Escape') {
+
+                document.querySelectorAll('.custom-modal:not(.hidden)').forEach(
+                    function (modal) {
+
+                        modal.classList.add('hidden');
+
+                    }
+                );
+
+                document.body.style.overflow = '';
+
+            }
+
+        });
+
+
+        // Réinitialiser le scroll après la fermeture d'une modale.
+
+        document.querySelectorAll('.custom-modal').forEach(function (modal) {
+
+            modal.addEventListener('transitionend', function () {
+
+                if (modal.classList.contains('hidden')) {
+                    document.body.style.overflow = '';
+                }
+
+            });
+
+        });
+
+    });
+
+
+    // -----------------------------------------------------
+    // RECHERCHE RAPIDE D'UN SERVEUR DANS LES MODALES
+    // -----------------------------------------------------
+
+    const normalize = function (value) {
+
+        return (value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+    };
+
+    document.querySelectorAll('input[id^="assign_search_"]').forEach(function (search) {
+
+        const pk = search.id.replace('assign_search_', '');
+        const select = document.getElementById('assign_serviteur_pk_' + pk);
+        const counter = document.getElementById('assign_search_count_' + pk);
+        const empty = document.getElementById('assign_search_empty_' + pk);
+        const clearBtn = document.querySelector('[data-clear-for="' + search.id + '"]');
+
+        if (!select) {
+            return;
+        }
+
+        const options = Array.prototype.slice.call(select.options).slice(1);
+
+        function applyFilter() {
+
+            const query = normalize(search.value);
+            const selectedValue = select.value;
+            let matches = 0;
+
+            // On retire puis on réinjecte les options correspondantes :
+            // masquer une <option> n'est pas fiable sur tous les navigateurs.
+
+            options.forEach(function (option) {
+                if (option.parentNode === select) {
+                    select.removeChild(option);
+                }
+            });
+
+            options.forEach(function (option) {
+
+                const haystack = normalize(option.dataset.search || option.textContent);
+                const visible = !query || haystack.indexOf(query) !== -1;
+
+                if (visible) {
+                    select.appendChild(option);
+                    matches++;
+                }
+
+            });
+
+            // La sélection est conservée si elle est toujours disponible.
+
+            const stillAvailable = Array.prototype.some.call(
+                select.options,
+                function (option) { return option.value === selectedValue && option.value !== ''; }
+            );
+
+            select.value = stillAvailable ? selectedValue : '';
+
+            // Un seul résultat : il est présélectionné.
+
+            if (query && matches === 1 && select.options.length > 1) {
+                select.selectedIndex = 1;
+            }
+
+            if (clearBtn) {
+                clearBtn.classList.toggle('hidden', !query);
+            }
+
+            if (empty) {
+                empty.classList.toggle('hidden', matches !== 0);
+            }
+
+            if (!query) {
+                counter.textContent = options.length
+                    ? options.length + ' serviteur' + (options.length > 1 ? 's' : '')
+                      + ' disponible' + (options.length > 1 ? 's' : '')
+                    : '';
+            } else if (matches === 0) {
+                counter.textContent = 'Aucun résultat';
+            } else {
+                counter.textContent = matches + ' résultat' + (matches > 1 ? 's' : '')
+                    + ' trouvé' + (matches > 1 ? 's' : '');
+            }
+
+        }
+
+        search.addEventListener('input', applyFilter);
+        search.addEventListener('search', applyFilter);
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                search.value = '';
+                applyFilter();
+                search.focus();
+            });
+        }
+
+        applyFilter();
+
+    });
+
+})();
+
+</script>
+
+{% endblock %}

@@ -54,13 +54,20 @@
 
                             <!-- Aperçu des réponses -->
                             <div class="mt-4 pt-4 border-t border-gray-100">
-                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Réponses</p>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Questions et réponses</p>
+                                <div class="space-y-2">
                                     {% for key, value in submission.answers.items %}
-                                    <div class="p-3 bg-purple-50 rounded-xl border border-purple-100 text-center">
-                                        <div class="text-[10px] font-bold text-purple-400 uppercase mb-1">Q{{ key|slice:"1:" }}</div>
-                                        <div class="text-sm font-medium text-purple-800">{{ value|get_choice_label:key|truncatechars:25 }}</div>
+                                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-purple-50 rounded-xl border border-purple-100">
+                                        <div class="flex-1 min-w-0">
+                                            <span class="text-[10px] font-bold text-purple-400 uppercase">Q{{ key|slice:"1:" }}</span>
+                                            <p class="text-xs text-purple-600 leading-relaxed">{{ key|get_question_label }}</p>
+                                        </div>
+                                        <div class="text-sm font-medium text-purple-800 sm:text-right sm:max-w-[40%]">
+                                            {{ value|get_choice_label:key|truncatechars:40 }}
+                                        </div>
                                     </div>
+                                    {% empty %}
+                                    <p class="text-sm text-gray-500 italic">Aucune réponse enregistrée pour cette soumission.</p>
                                     {% endfor %}
                                 </div>
                             </div>

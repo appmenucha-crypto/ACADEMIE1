@@ -73,6 +73,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'traning.context_processors.serviteur_list_for_referant',
+                'traning.context_processors.serviteur_unread_messages',
             ],
         },
     },
@@ -91,8 +93,15 @@ AUTH_USER_MODEL = 'traning.CustomUser'
 
 #DATABASES = {
     #"default": {
-   #    "ENGINE": "django.db.backends.sqlite3",
-  #     "NAME": BASE_DIR / "db.sqlite3",
+       #"ENGINE": "django.db.backends.sqlite3",
+       #"NAME": BASE_DIR / "db.sqlite3",
+       # SQLite verrouille la base en écriture : le mode WAL permet aux
+       # lectures de ne pas être bloquées pendant une écriture (sessions,
+       # messages, formations) et le busy_timeout évite les erreurs
+       # « database is locked » quand plusieurs requêtes écrivent en même temps.
+    #   "OPTIONS": {
+   #        "timeout": 15,
+  #     },
  #   }
 #}
 

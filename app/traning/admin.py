@@ -5,11 +5,13 @@ from .models import CustomUser, Formation, Bloc, AudioFile, VideoFile, Serviteur
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
-        ('Role', {'fields': ('role',)}),
+        ('Rôle', {'fields': ('role',)}),
+        ('Référent', {'fields': ('referant',)}),
     )
     list_display = ('username', 'first_name', 'last_name', 'role', 'is_active', 'date_joined')
-    list_filter = ('role', 'is_active', 'is_staff')
+    list_filter = ('role', 'is_active', 'is_staff', 'referant')
     search_fields = ('username', 'first_name', 'last_name', 'email')
+    ordering = ('-date_joined',)
 
 class BlocInline(admin.TabularInline):
     model = Bloc

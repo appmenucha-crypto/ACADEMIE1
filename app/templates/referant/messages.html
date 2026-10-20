@@ -1,0 +1,114 @@
+{% extends "referant/base.html" %}
+
+{% block page_title %}Messages{% endblock %}
+{% block subtitle %}Messages envoyés à vos serviteurs{% endblock %}
+
+{% block serviteur_content %}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-3xl font-bold text-charcoal flex items-center">
+        <i class="fas fa-paper-plane text-indigo-500 mr-3"></i>Boîte d'envoi
+    </h1>
+    <a href="{% url 'traning:referant_serviteurs' %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-4 py-2 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2">
+        <i class="fas fa-users"></i>Mes serviteurs
+    </a>
+</div>
+
+{% if messages_envoyes %}
+<div class="hidden sm:block overflow-x-auto">
+    <table class="w-full">
+        <thead>
+            <tr class="bg-gray-50/50 border-b border-gray-100 text-xs">
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Destinataire</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Objet</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Envoyé le</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Statut</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Action</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for message in messages_envoyes %}
+            <tr class="hover:bg-indigo-50/30 transition-colors">
+                <td class="px-4 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                            {{ message.recipient.username|slice:":2"|upper }}
+                        </div>
+                        <span class="font-semibold text-charcoal text-sm">{{ message.recipient.first_name }} {{ message.recipient.last_name }}</span>
+                        <span class="text-xs text-gray-400">({{ message.recipient.username }})</span>
+                    </div>
+                </td>
+                <td class="px-4 py-4">
+                    <p class="font-medium text-charcoal text-sm">{{ message.subject }}</p>
+                    <p class="text-xs text-gray-400 truncate max-w-xs mt-0.5">{{ message.body|truncatechars:70 }}</p>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">{{ message.created_at|date:"d/m/Y H:i" }}</td>
+                <td class="px-4 py-4">
+                    {% if message.is_read %}
+                    <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-100"><i class="fas fa-check-double mr-1"></i>Lu</span>
+                    {% else %}
+                    <span class="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold border border-amber-100"><i class="fas fa-clock mr-1"></i>En attente</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-4">
+                    <a href="{% url 'traning:referant_serviteur_message' message.recipient.pk %}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold text-xs transition-all inline-block">
+                        Suivre
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Mobile -->
+<div class="block sm:hidden space-y-3">
+    {% for message in messages_envoyes %}
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div class="flex items-center justify-between gap-3 mb-2">
+            <h3 class="font-semibold text-charcoal text-sm truncate">{{ message.subject }}</h3>
+            {% if message.is_read %}
+            <span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold flex-shrink-0"><i class="fas fa-check-double mr-1"></i>Lu</span>
+            {% else %}
+            <span class="px-2 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold flex-shrink-0"><i class="fas fa-clock mr-1"></i>En attente</span>
+            {% endif %}
+        </div>
+        <p class="text-xs text-gray-500 mb-1">À {{ message.recipient.first_name }} {{ message.recipient.last_name }} <span class="text-gray-400">({{ message.recipient.username }})</span> · {{ message.created_at|date:"d/m/Y H:i" }}</p>
+        <p class="text-xs text-gray-600 truncate">{{ message.body }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20">
+    <i class="fas fa-paper-plane text-6xl text-gray-300 mb-6"></i>
+    <h3 class="text-2xl font-bold text-charcoal mb-2">Aucun message envoyé</h3>
+    <p class="text-gray-500 mb-8">Sélectionnez un serviteur pour lui écrire.</p>
+    <a href="{% url 'traning:referant_serviteurs' %}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg shadow-lg transition-all inline-block">
+        <i class="fas fa-users mr-2"></i>Mes serviteurs
+    </a>
+</div>
+{% endif %}
+
+<!-- RÉPONSES REÇUES DES SERVITEURS -->
+
+{% if reponses_recues %}
+<div class="mt-12">
+    <h2 class="text-xl font-bold text-charcoal mb-4 flex items-center">
+        <i class="fas fa-reply text-emerald-500 mr-3"></i>Réponses reçues
+    </h2>
+    <div class="space-y-3">
+        {% for message in reponses_recues %}
+        <div class="glass-panel p-4 rounded-2xl border-l-4 border-emerald-400">
+            <div class="flex items-start justify-between gap-4 mb-1">
+                <p class="font-bold text-charcoal text-sm truncate">
+                    {{ message.sender.first_name }} {{ message.sender.last_name }}
+                </p>
+                <span class="text-xs text-gray-400 flex-shrink-0">{{ message.created_at|date:"d/m/Y H:i" }}</span>
+            </div>
+            <p class="text-xs text-gray-400 mb-2 truncate">{{ message.subject }}</p>
+            <p class="text-sm text-gray-600 whitespace-pre-line">{{ message.body }}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

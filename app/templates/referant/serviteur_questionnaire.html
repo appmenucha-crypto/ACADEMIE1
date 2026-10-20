@@ -1,0 +1,217 @@
+{% extends "referant/base.html" %}
+
+{% block page_title %}Réponses — {{ sf.formation.name }}{% endblock %}
+{% block subtitle %}Consultation du questionnaire soumis par {{ serviteur.username }}{% endblock %}
+
+{% block serviteur_content %}
+<!-- Retour -->
+<div class="mb-6">
+    <a href="{% url 'traning:referant_serviteur_detail' serviteur.pk %}" class="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-all">
+        <i class="fas fa-arrow-left"></i>Retour à la fiche de {{ serviteur.first_name|default:serviteur.username }}
+    </a>
+</div>
+
+<!-- En-tête : formation + serviteur -->
+<div class="glass-panel rounded-3xl overflow-hidden mb-8">
+    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-6 sm:p-8">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-5">
+            <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center font-bold text-xl flex-shrink-0">
+                {{ sf.formation.name|slice:":2"|upper }}
+            </div>
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl sm:text-2xl font-bold mb-1 truncate">{{ sf.formation.name }}</h1>
+                <p class="text-sm opacity-90">
+                    Questionnaire soumis le {{ sf.date_soumission|date:"d/m/Y à H:i" }}
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                {% if sf.display_status == 'valid' %}
+                    <span class="px-4 py-2 bg-emerald-500/25 border border-emerald-300/40 rounded-xl text-sm font-bold">
+                        <i class="fas fa-check-circle mr-1"></i>Validé
+                    </span>
+                {% elif sf.display_status == 'failed' %}
+                    <span class="px-4 py-2 bg-red-500/25 border border-red-300/40 rounded-xl text-sm font-bold">
+                        <i class="fas fa-times-circle mr-1"></i>Échu
+                    </span>
+                {% else %}
+                    <span class="px-4 py-2 bg-amber-500/25 border border-amber-300/40 rounded-xl text-sm font-bold">
+                        <i class="fas fa-hourglass-half mr-1"></i>En cours
+                    </span>
+                {% endif %}
+                <div class="text-right">
+                    <p class="text-3xl font-bold">{{ sf.score_20|floatformat:1 }}/20</p>
+                    <p class="text-xs opacity-90">Note obtenue</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations du serviteur -->
+    <div class="p-6 sm:p-8">
+        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Serviteur ayant répondu</h2>
+        <div class="flex flex-col sm:flex-row sm:items-start gap-5">
+            <div class="w-16 h-16 rounded-2xl overflow-hidden ring-4 ring-indigo-100 flex-shrink-0">
+                {% if serviteur.profile_photo %}
+                    <img src="{{ serviteur.profile_photo.url }}" alt="{{ serviteur.get_full_name }}" class="w-full h-full object-cover">
+                {% else %}
+                    <div class="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                        {{ serviteur.username|slice:":2"|upper }}
+                    </div>
+                {% endif %}
+            </div>
+            <div class="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-user text-indigo-400 mt-1"></i>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Nom</p>
+                        <p class="text-sm text-charcoal truncate">{{ serviteur.first_name }} {{ serviteur.last_name }}</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-at text-indigo-400 mt-1"></i>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Identifiant</p>
+                        <p class="text-sm text-charcoal truncate">{{ serviteur.username }}</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-envelope text-indigo-400 mt-1"></i>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">E-mail</p>
+                        <p class="text-sm text-charcoal truncate">{% if serviteur.email %}{{ serviteur.email }}{% else %}<span class="text-gray-400 italic">Non renseigné</span>{% endif %}</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-building text-indigo-400 mt-1"></i>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Département</p>
+                        <p class="text-sm text-charcoal truncate">{% if serviteur.departement %}{{ serviteur.departement.name }}{% else %}<span class="text-gray-400 italic">Non renseigné</span>{% endif %}</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-phone text-indigo-400 mt-1"></i>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Téléphone</p>
+                        <p class="text-sm text-charcoal truncate">{% if serviteur.phone_number %}{{ serviteur.phone_number }}{% else %}<span class="text-gray-400 italic">Non renseigné</span>{% endif %}</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-calendar-alt text-indigo-400 mt-1"></i>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Inscrit le</p>
+                        <p class="text-sm text-charcoal">{{ serviteur.date_joined|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if sf.identity %}
+        <div class="mt-6 pt-6 border-t border-gray-100">
+            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Informations saisies par le serviteur</h2>
+            <div class="flex flex-wrap gap-2">
+                {% if sf.identity.nom %}<span class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-medium">Nom : <strong>{{ sf.identity.nom }}</strong></span>{% endif %}
+                {% if sf.identity.prenom %}<span class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-medium">Prénom : <strong>{{ sf.identity.prenom }}</strong></span>{% endif %}
+                {% if sf.identity.famille %}<span class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-medium">Famille : <strong>{{ sf.identity.famille }}</strong></span>{% endif %}
+                {% if sf.identity.tribu %}<span class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-medium">Tribu : <strong>{{ sf.identity.tribu }}</strong></span>{% endif %}
+                {% if sf.identity.departement %}<span class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-medium">Département : <strong>{{ sf.identity.departement }}</strong></span>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Synthèse des réponses -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-5 rounded-2xl shadow-lg">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle text-2xl opacity-80 mr-3"></i>
+            <div>
+                <p class="text-emerald-100 text-xs font-medium">Bonnes réponses</p>
+                <p class="text-2xl font-bold">{{ answers_correct }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-gradient-to-br from-red-500 to-red-600 text-white p-5 rounded-2xl shadow-lg">
+        <div class="flex items-center">
+            <i class="fas fa-times-circle text-2xl opacity-80 mr-3"></i>
+            <div>
+                <p class="text-red-100 text-xs font-medium">Mauvaises réponses</p>
+                <p class="text-2xl font-bold">{{ answers_incorrect }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-5 rounded-2xl shadow-lg">
+        <div class="flex items-center">
+            <i class="fas fa-list-check text-2xl opacity-80 mr-3"></i>
+            <div>
+                <p class="text-blue-100 text-xs font-medium">Questions</p>
+                <p class="text-2xl font-bold">{{ answers_total }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-5 rounded-2xl shadow-lg">
+        <div class="flex items-center">
+            <i class="fas fa-percent text-2xl opacity-80 mr-3"></i>
+            <div>
+                <p class="text-purple-100 text-xs font-medium">Réussite</p>
+                <p class="text-2xl font-bold">
+                    {% if answers_total %}{{ answers_correct }}/{{ answers_total }}{% else %}—{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Détail question par question -->
+<div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-charcoal flex items-center">
+        <i class="fas fa-list-check text-indigo-500 mr-3"></i>Détail des réponses
+    </h2>
+    <div class="flex items-center gap-4 text-xs font-medium">
+        <span class="flex items-center gap-1.5 text-emerald-600"><i class="fas fa-circle text-[0.5rem]"></i>Bonne réponse</span>
+        <span class="flex items-center gap-1.5 text-red-600"><i class="fas fa-circle text-[0.5rem]"></i>Mauvaise réponse</span>
+        <span class="flex items-center gap-1.5 text-gray-400"><i class="fas fa-circle text-[0.5rem]"></i>Sans réponse</span>
+    </div>
+</div>
+
+{% if has_detail %}
+<div class="space-y-3 mb-10">
+    {% for answer in answers_detail %}
+    <div class="rounded-2xl border p-4 sm:p-5 {% if answer.correct %}border-emerald-200 bg-emerald-50/50{% elif answer.answered %}border-red-200 bg-red-50/40{% else %}border-gray-200 bg-gray-50/40{% endif %}">
+        <div class="flex items-start gap-3 mb-3">
+            <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 {% if answer.correct %}bg-emerald-500 text-white{% elif answer.answered %}bg-red-500 text-white{% else %}bg-gray-300 text-white{% endif %}">
+                {% if answer.correct %}<i class="fas fa-check"></i>{% elif answer.answered %}<i class="fas fa-times"></i>{% else %}{{ answer.index|add:1 }}{% endif %}
+            </span>
+            <p class="font-semibold text-charcoal text-sm flex-1">{{ answer.question }}</p>
+        </div>
+
+        <div class="ml-10 space-y-2">
+            {% if answer.chosen_label %}
+                <p class="text-sm {% if answer.correct %}text-emerald-700 font-semibold{% else %}text-red-700 font-semibold{% endif %}">
+                    <i class="fas {% if answer.correct %}fa-check-circle text-emerald-500{% else %}fa-times-circle text-red-500{% endif %} mr-1"></i>
+                    Réponse du serviteur : {{ answer.chosen_label }}
+                    {% if answer.correct %}<span class="text-emerald-600 font-normal">— bonne réponse</span>{% endif %}
+                </p>
+            {% else %}
+                <p class="text-sm text-gray-400 italic">
+                    <i class="fas fa-minus-circle mr-1"></i>Aucune réponse
+                </p>
+            {% endif %}
+
+            {% if not answer.correct and answer.expected_label %}
+                <p class="text-sm text-emerald-700">
+                    <i class="fas fa-lightbulb text-emerald-500 mr-1"></i>
+                    Réponse attendue : <span class="font-semibold">{{ answer.expected_label }}</span>
+                </p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="glass-panel rounded-2xl p-8 mb-10 text-center">
+    <i class="fas fa-info-circle text-4xl text-gray-300 mb-3"></i>
+    <p class="text-gray-500 text-sm">Aucune réponse détaillée n'a été enregistrée pour ce questionnaire.</p>
+</div>
+{% endif %}
+{% endblock %}

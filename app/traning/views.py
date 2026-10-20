@@ -1,20 +1,31 @@
 import csv
 import json
+import logging
 from datetime import timedelta, datetime
+from urllib.parse import urlencode
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import _get_user_session_key
+from django.contrib.sessions.backends.db import SessionStore
+from django.contrib.sessions.backends.base import CreateError
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LogoutView
 from django.urls import reverse_lazy
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponsePermanentRedirect, JsonResponse
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Count, Avg, Q, Max
+from django.db.utils import OperationalError
+from django.core.files.storage import default_storage
 from django.views.decorators.http import require_POST
-from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile, Departement
+from django.views.decorators.cache import never_cache
+from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, VideoFile, Departement, ReferentMessage
 
-from .forms import ServiteurForm, FormationCreationForm, VertumetreForm
+logger = logging.getLogger(__name__)
+
+from .forms import ServiteurForm, FormationCreationForm, FormationEditForm, VertumetreForm, AdminReferantForm
 from .models_vertumetre import ServiteurVertumetre, VertumetreSubmission
+from .quiz import serviteur_answers_summary
 
 # Admin - Compte
 from .admin_account import admin_account
@@ -33,6 +44,8 @@ def admin_dashboard(request):
     pending_actions = ServiteurFormation.objects.filter(statut=2).count()
     # Nombre de vertumètres réellement soumis (submitted_at rempli)
     vertumetre_count = ServiteurVertumetre.objects.filter(last_submitted_at__isnull=False).count()
+    # Formations dont le questionnaire n'a jamais été transmis
+    not_transmitted_count = ServiteurFormation.objects.filter(statut=3).count()
     
     # Graph data
     sf_stats = {
@@ -40,6 +53,7 @@ def admin_dashboard(request):
         'avg_score': round((ServiteurFormation.objects.filter(date_soumission__isnull=False).aggregate(avg=Avg('score'))['avg'] or 0) * 0.2, 1),
         'validated': ServiteurFormation.objects.filter(statut=1).count(),
         'failed': ServiteurFormation.objects.filter(statut=0).count(),
+        'not_transmitted': ServiteurFormation.objects.filter(statut=3).count(),
         'pending': ServiteurFormation.objects.filter(statut=2).count()
     }
     
@@ -58,7 +72,8 @@ def admin_dashboard(request):
         'recent_labels': recent_labels,
         'recent_data': recent_data,
         'top_serviteurs': top_serviteurs,
-        'vertumetre_count': vertumetre_count
+        'vertumetre_count': vertumetre_count,
+        'not_transmitted_count': not_transmitted_count
     })
 
 @login_required(login_url='/')
@@ -284,6 +299,68 @@ def admin_vertumetres(request):
 
 
 @login_required(login_url='/')
+def admin_resultat_detail(request, pk):
+    """Détail d'un serviteur : questionnaires soumis (vert/rouge) et vertumètre."""
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        return redirect('/')
+
+    serviteur = get_object_or_404(
+        CustomUser.objects.select_related('departement').prefetch_related('referant'),
+        pk=pk, role='serviteur',
+    )
+
+    sf_list = list(
+        ServiteurFormation.objects
+        .filter(serviteur=serviteur)
+        .select_related('formation')
+        .order_by('-date_soumission', '-date_debut')
+    )
+
+    submitted = []
+    not_transmitted = []
+    for sf in sf_list:
+        sf.score_20 = round(sf.score * 0.2, 1)
+        summary = serviteur_answers_summary(sf.formation, sf.html_responses)
+        sf.answers_total = summary['total']
+        sf.answers_correct = summary['correct']
+        sf.answers_incorrect = summary['incorrect']
+        sf.answers_detail = summary['detail']
+        sf.has_detail = summary['total'] > 0
+        if sf.date_soumission is not None:
+            submitted.append(sf)
+        elif sf.display_status == 'not_transmitted':
+            not_transmitted.append(sf)
+
+    stats = {
+        'total': len(sf_list),
+        'valid': sum(1 for s in sf_list if s.display_status == 'valid'),
+        'failed': sum(1 for s in sf_list if s.display_status == 'failed'),
+        'progress': sum(1 for s in sf_list if s.display_status == 'progress'),
+        'not_transmitted': sum(1 for s in sf_list if s.display_status == 'not_transmitted'),
+        'submitted': len(submitted),
+    }
+    stats['score_moyen'] = (
+        round(sum(s.score_20 for s in submitted) / len(submitted), 1) if submitted else 0
+    )
+
+    # Vertumètre du serviteur
+    vertumetre = ServiteurVertumetre.objects.filter(serviteur=serviteur).first()
+    vertumetre_submissions = (
+        vertumetre.submissions.all() if vertumetre else []
+    )
+
+    return render(request, 'admin/resultat_detail.html', {
+        'serviteur': serviteur,
+        'sf_list': sf_list,
+        'submitted_list': submitted,
+        'not_transmitted_list': not_transmitted,
+        'stats': stats,
+        'vertumetre': vertumetre,
+        'vertumetre_submissions': vertumetre_submissions,
+    })
+
+
+@login_required(login_url='/')
 def admin_vertumetre_detail(request, pk):
     """Détail de toutes les soumissions d'un serviteur."""
     if not (request.user.role == 'admin' or request.user.is_superuser):
@@ -306,11 +383,14 @@ def admin_vertumetre_detail(request, pk):
 def admin_courses(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
-    
+
     success_message = None
+    error_message = None
     formation_form = FormationCreationForm()
     show_modal = False
-    
+    edit_form = None
+    edit_formation = None
+
     if request.method == 'POST':
         if 'create' in request.POST:
             formation_form = FormationCreationForm(request.POST, request.FILES)
@@ -327,27 +407,83 @@ def admin_courses(request):
                             AudioFile.objects.create(bloc=bloc, file=audio_file, order=i+1)
                         for i, video_file in enumerate(video_files):
                             VideoFile.objects.create(bloc=bloc, file=video_file, order=i+1)
-                
-                success_message = "Formation créée avec succès !"
+
+                success_message = (
+                    f"Formation « {formation.name} » créée avec succès !"
+                    + ("" if formation.is_active else " Elle est inactive : invisible chez les serviteurs jusqu'à activation.")
+                )
                 formation_form = FormationCreationForm()
             else:
                 show_modal = True
-        
+
+        elif 'toggle_active' in request.POST:
+            pk = request.POST.get('toggle_active')
+            try:
+                formation = Formation.objects.get(pk=pk)
+            except (Formation.DoesNotExist, ValueError):
+                error_message = "Formation introuvable."
+            else:
+                formation.is_active = not formation.is_active
+                formation.save(update_fields=['is_active'])
+                success_message = (
+                    f"Formation « {formation.name} » activée : elle est maintenant visible chez les serviteurs."
+                    if formation.is_active
+                    else f"Formation « {formation.name} » désactivée : elle reste gérable ici mais n'apparaît plus chez les serviteurs."
+                )
+
+        elif 'edit' in request.POST:
+            pk = request.POST.get('edit')
+            try:
+                edit_formation = Formation.objects.get(pk=pk)
+            except (Formation.DoesNotExist, ValueError):
+                error_message = "Formation introuvable."
+            else:
+                edit_form = FormationEditForm(request.POST, instance=edit_formation)
+                if edit_form.is_valid():
+                    edit_form.save()
+                    success_message = f"Formation « {edit_formation.name} » mise à jour."
+                    edit_formation = None
+                    edit_form = None
+                else:
+                    show_modal = True
+
         elif 'delete_pk' in request.POST:
             pk = request.POST.get('delete_pk')
             try:
-                Formation.objects.get(pk=pk).delete()
-                success_message = "Formation supprimée avec succès."
-            except Formation.DoesNotExist:
+                formation = Formation.objects.get(pk=pk)
+                name = formation.name
+                formation.delete()
+                success_message = f"Formation « {name} » supprimée avec succès."
+            except (Formation.DoesNotExist, ValueError):
                 pass
 
     formations = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').all().order_by('-created_at')
-    
+
+    # Filtre d'affichage : tous / actives / inactives
+    etat = request.GET.get('etat', 'tous').strip().lower()
+    if etat == 'actif':
+        formations = formations.filter(is_active=True)
+    elif etat == 'inactif':
+        formations = formations.filter(is_active=False)
+    else:
+        etat = 'tous'
+
+    compteurs = {
+        'tous': Formation.objects.count(),
+        'actif': Formation.objects.filter(is_active=True).count(),
+        'inactif': Formation.objects.filter(is_active=False).count(),
+    }
+
     return render(request, 'admin/courses.html', {
         'formations': formations,
         'formation_form': formation_form,
+        'edit_form': edit_form,
+        'edit_formation': edit_formation,
         'success_message': success_message,
-        'show_modal': show_modal
+        'error_message': error_message,
+        'show_modal': show_modal,
+        'etat': etat,
+        'compteurs': compteurs,
     })
 
 @login_required(login_url='/')
@@ -418,22 +554,43 @@ def admin_formation_detail(request, pk):
     success_message = None
     
     if request.method == 'POST':
-        if 'add_audios' in request.POST:
+        if 'toggle_active' in request.POST:
+            formation.is_active = not formation.is_active
+            formation.save(update_fields=['is_active'])
+            success_message = (
+                f"Formation « {formation.name} » activée : elle est maintenant visible chez les serviteurs."
+                if formation.is_active
+                else f"Formation « {formation.name} » désactivée : elle reste gérable ici mais n'apparaît plus chez les serviteurs."
+            )
+            formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
+        elif 'add_audios' in request.POST:
+            audio_files = request.FILES.getlist('audio_files')
+            # Les fichiers sont copiés sur le disque AVANT la transaction :
+            # sinon le verrou d'écriture SQLite est tenu pendant tout l'upload
+            # et bloque les autres utilisateurs (connexions, messages...).
+            noms_audios = [
+                default_storage.save('audios/' + f.name, f, max_length=100)
+                for f in audio_files
+            ]
             with transaction.atomic():
                 bloc, created = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
-                audio_files = request.FILES.getlist('audio_files')
                 current_count = AudioFile.objects.filter(bloc__formation=formation).count()
-                for i, file in enumerate(audio_files):
-                    AudioFile.objects.create(bloc=bloc, file=file, order=current_count + i + 1)
+                for i, nom in enumerate(noms_audios):
+                    AudioFile.objects.create(bloc=bloc, file=nom, order=current_count + i + 1)
             success_message = f"{len(audio_files)} audio(s) ajouté(s) avec succès !"
             formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
         elif 'add_videos' in request.POST:
+            video_files = request.FILES.getlist('video_files')
+            # Même principe que pour les audios : écriture disque hors transaction.
+            noms_videos = [
+                default_storage.save('videos/' + f.name, f, max_length=100)
+                for f in video_files
+            ]
             with transaction.atomic():
                 bloc, created = Bloc.objects.get_or_create(formation=formation, name="Contenu Principal", defaults={'order': 1})
-                video_files = request.FILES.getlist('video_files')
                 current_count = VideoFile.objects.filter(bloc__formation=formation).count()
-                for i, file in enumerate(video_files):
-                    VideoFile.objects.create(bloc=bloc, file=file, order=current_count + i + 1)
+                for i, nom in enumerate(noms_videos):
+                    VideoFile.objects.create(bloc=bloc, file=nom, order=current_count + i + 1)
             success_message = f"{len(video_files)} vidéo(s) ajoutée(s) avec succès !"
             formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
         elif 'delete_audio' in request.POST:
@@ -677,6 +834,7 @@ def admin_results(request):
     stats = {
         'valide': ServiteurFormation.objects.filter(statut=1).count(),
         'echoue': ServiteurFormation.objects.filter(statut=0).count(),
+        'non_transmis': ServiteurFormation.objects.filter(statut=3).count(),
         'en_cours': ServiteurFormation.objects.filter(statut=2).count(),
         'total': ServiteurFormation.objects.count()
     }
@@ -699,12 +857,25 @@ def admin_results(request):
         except (TypeError, ValueError):
             recent_results = recent_results.none()
 
+    # Recherche par nom (prénom, nom, identifiant ou e-mail)
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        recent_results = recent_results.filter(
+            Q(serviteur__first_name__icontains=search_query)
+            | Q(serviteur__last_name__icontains=search_query)
+            | Q(serviteur__username__icontains=search_query)
+            | Q(serviteur__email__icontains=search_query)
+        )
+
 
     if filtre == 'valide':
         recent_results = recent_results.filter(statut=1)
 
     elif filtre == 'echec':
         recent_results = recent_results.filter(statut=0)
+
+    elif filtre == 'non_transmis':
+        recent_results = recent_results.filter(statut=3)
 
     elif filtre == 'en_cours':
         recent_results = recent_results.filter(statut=2)
@@ -731,12 +902,24 @@ def admin_results(request):
         except (TypeError, ValueError):
             base_qs = base_qs.none()
 
+    # Recherche par nom (stats / moyennes)
+    if search_query:
+        base_qs = base_qs.filter(
+            Q(serviteur__first_name__icontains=search_query)
+            | Q(serviteur__last_name__icontains=search_query)
+            | Q(serviteur__username__icontains=search_query)
+            | Q(serviteur__email__icontains=search_query)
+        )
+
 
     if filtre == 'valide':
         base_qs = base_qs.filter(statut=1)
 
     elif filtre == 'echec':
         base_qs = base_qs.filter(statut=0)
+
+    elif filtre == 'non_transmis':
+        base_qs = base_qs.filter(statut=3)
 
     elif filtre == 'en_cours':
         base_qs = base_qs.filter(statut=2)
@@ -963,8 +1146,26 @@ def admin_results(request):
             elif filtre == 'echec':
                 all_results = all_results.filter(statut=0)
 
+            elif filtre == 'non_transmis':
+                all_results = all_results.filter(statut=3)
+
             elif filtre == 'en_cours':
                 all_results = all_results.filter(statut=2)
+
+            if departement_id:
+                try:
+                    all_results = all_results.filter(
+                        serviteur__departement_id=int(departement_id))
+                except (TypeError, ValueError):
+                    all_results = all_results.none()
+
+            if search_query:
+                all_results = all_results.filter(
+                    Q(serviteur__first_name__icontains=search_query)
+                    | Q(serviteur__last_name__icontains=search_query)
+                    | Q(serviteur__username__icontains=search_query)
+                    | Q(serviteur__email__icontains=search_query)
+                )
 
             for res in all_results:
                 res.score_20 = round(res.score * 0.2, 1)
@@ -974,6 +1175,8 @@ def admin_results(request):
                 'valide': 'Validés',
 
                 'echec': 'Échecs',
+
+                'non_transmis': 'Non transmis',
 
                 'en_cours': 'En cours',
 
@@ -1015,6 +1218,17 @@ def admin_results(request):
     # TEMPLATE
     # =========================
 
+    # Paramètres conservés lors du changement de filtre rapide (statut / moyennes)
+    preserved_params = {
+        key: value for key, value in request.GET.items()
+        if key not in ('filtre', 'show_averages', 'export')
+    }
+    filter_query = urlencode(preserved_params)
+    clear_query = urlencode({
+        key: value for key, value in request.GET.items()
+        if key not in ('q', 'export')
+    })
+
     return render(
 
         request,
@@ -1031,6 +1245,12 @@ def admin_results(request):
             'recent_results': recent_results,
 
             'filtre': filtre,
+
+            'search_query': search_query,
+
+            'filter_query': filter_query,
+
+            'clear_query': clear_query,
 
             'results_by_student': results_by_student,
 
@@ -1064,21 +1284,16 @@ def serviteur_dashboard(request):
     if request.user.role != 'serviteur':
         return redirect('/')
     now = timezone.now()
-    formations = ServiteurFormation.objects.filter(serviteur=request.user).select_related('formation').order_by('formation__name')
+    formations = ServiteurFormation.objects.filter(
+        serviteur=request.user, formation__is_active=True
+    ).select_related('formation').order_by('formation__name')
     
     # Ajout d'un statut temporaire pour l'affichage
     for sf in formations:
         sf.score_20 = round(sf.score * 0.2, 1)
-        if sf.statut == 1:
-            sf.display_status = 'valid'
-        elif sf.statut == 0:
-            # Épreuve terminée (soumission enregistrée) mais non validée, ou délai dépassé.
-            sf.display_status = 'failed' if sf.date_soumission is not None else 'expired'
-        else:
-            sf.display_status = 'progress'
     
     # Stats pour graphiques
-    total_available = Formation.objects.count()
+    total_available = Formation.objects.filter(is_active=True).count()
     total_my = len(formations)
     completed_count = sum(1 for sf in formations if sf.display_status == 'valid')
     in_progress_count = sum(1 for sf in formations if sf.display_status == 'progress')
@@ -1092,7 +1307,7 @@ def serviteur_dashboard(request):
         'total_my': total_my,
         'completed': completed_count,
         'in_progress': in_progress_count,
-        'not_started': total_available - total_my,
+        'not_started': max(0, total_available - total_my),
         'score_moyen': round(score_moyen, 1)
     }
     
@@ -1106,10 +1321,12 @@ def serviteur_formations(request):
     if request.user.role != 'serviteur':
         return redirect('/')
 
-    formations = Formation.objects.prefetch_related('blocs__audios').all()
+    formations = Formation.objects.filter(is_active=True).prefetch_related('blocs__audios').all()
 
     # Récupérer les progressions
-    my_sfs = ServiteurFormation.objects.filter(serviteur=request.user).select_related('formation')
+    my_sfs = ServiteurFormation.objects.filter(
+        serviteur=request.user, formation__is_active=True
+    ).select_related('formation')
 
     # Transformer en dictionnaire simple
     progress_dict = {}
@@ -1125,15 +1342,16 @@ def serviteur_formations(request):
         if sf:
             # Le cours est considéré terminé dès que la soumission est enregistrée
             # (note affichée par le HTML importé comprise), même si la note est de 0.
-            if sf.date_soumission is not None:
-                status = 'completed'
-                score20 = round(sf.score * 0.2, 1)
-            elif sf.date_debut:
-                status = 'in_progress'
-                score20 = 0
-            else:
+            if sf.date_debut is None:
                 status = 'started'
-                score20 = 0
+            else:
+                status = {
+                    'valid': 'completed',
+                    'failed': 'completed',
+                    'not_transmitted': 'not_transmitted',
+                    'progress': 'in_progress',
+                }.get(sf.display_status, 'in_progress')
+            score20 = round(sf.score * 0.2, 1) if sf.date_soumission is not None else 0
         else:
             status = 'not_started'
             score20 = 0
@@ -1153,7 +1371,11 @@ def serviteur_formation_detail(request, pk):
     if request.user.role != 'serviteur':
         return redirect('/')
 
-    formation = Formation.objects.prefetch_related('blocs__audios', 'blocs__videos').get(pk=pk)
+    # Les formations inactivées par l'administration ne sont plus accessibles aux serviteurs
+    formation = get_object_or_404(
+        Formation.objects.prefetch_related('blocs__audios', 'blocs__videos'),
+        pk=pk, is_active=True,
+    )
 
     sf, created = ServiteurFormation.objects.get_or_create(
         serviteur=request.user,
@@ -1169,7 +1391,7 @@ def serviteur_formation_detail(request, pk):
 
     # ✅ Mise à jour automatique: si la date limite est dépassée et aucune soumission
     if sf.statut == 2 and sf.date_soumission is None and sf.date_limite and sf.date_limite <= timezone.now():
-        sf.statut = 0  # Échoué
+        sf.statut = 3  # Non transmis (délai dépassé, questionnaire jamais soumis)
         sf.save(update_fields=["statut"])
 
     score_20 = round(sf.score * 0.2, 1) if sf.score else 0
@@ -1227,7 +1449,7 @@ def serviteur_questionnaire_html_result(request, pk):
         return JsonResponse({'error': 'Accès refusé'}, status=403)
 
     try:
-        formation = Formation.objects.get(pk=pk)
+        formation = Formation.objects.get(pk=pk, is_active=True)
     except Formation.DoesNotExist:
         return JsonResponse({'error': 'Formation introuvable'}, status=404)
 
@@ -1283,7 +1505,7 @@ def serviteur_questionnaire_html_result(request, pk):
 def serviteur_questionnaire(request, pk):
     if request.user.role != 'serviteur':
         return redirect('/')
-    formation = Formation.objects.get(pk=pk)
+    formation = get_object_or_404(Formation.objects, pk=pk, is_active=True)
     sf, created = ServiteurFormation.objects.get_or_create(
         serviteur=request.user,
         formation=formation,
@@ -1297,7 +1519,7 @@ def serviteur_questionnaire(request, pk):
 
     # ✅ Mise à jour automatique: si la date limite est dépassée et aucune soumission
     if sf.statut == 2 and sf.date_soumission is None and sf.date_limite and sf.date_limite <= timezone.now():
-        sf.statut = 0  # Échoué
+        sf.statut = 3  # Non transmis (délai dépassé, questionnaire jamais soumis)
         sf.save(update_fields=["statut"])
 
     score_20 = round(sf.score * 0.2, 1) if sf.score else 0
@@ -1339,10 +1561,14 @@ def serviteur_questionnaire(request, pk):
         questionnaire = formation.questionnaire_json
         score = 0
         total = len(questionnaire)
+        responses = {}
         for i in range(total):
             q = questionnaire[i]
             q_type = q.get('type')
             user_answer_str = request.POST.get(f'question_{i}', '').strip().lower()
+
+            # Mémorise la réponse pour que le référent puisse la consulter
+            responses[f'question_{i}'] = user_answer_str
 
             # Détection automatique du type si manquant (pour compatibilité)
             if not q_type:
@@ -1359,6 +1585,8 @@ def serviteur_questionnaire(request, pk):
                     score += 1
         sf.score = int((score / total) * 100) if total > 0 else 0
         sf.date_soumission = timezone.now()
+        if responses:
+            sf.html_responses = responses
         sf.save()
         return redirect('traning:serviteur_dashboard')
     return render(request, 'serviteur/questionnaire.html', {'formation': formation, 'sf': sf})
@@ -1447,6 +1675,513 @@ def logout_view(request):
     return redirect('traning:login')
 
 
+def legacy_referent_redirect(request, *args, **kwargs):
+    """Redirige les anciennes adresses « /referent/… » vers « /referant/… ».
+
+    Les adresses référent ont d'abord été publiées avec l'orthographe
+    « referent » : les liens et onglets déjà ouverts dans le navigateur
+    doivent continuer à fonctionner."""
+    suffixe = request.path[len('/referent'):] or '/'
+    requete = request.META.get('QUERY_STRING', '')
+    url = '/referant' + suffixe + (('?' + requete) if requete else '')
+    return HttpResponsePermanentRedirect(url)
+
+
+@login_required(login_url='/')
+def referant_dashboard(request):
+    if not (request.user.role == 'referant'):
+        return redirect('/')
+    serviteurs = list(
+        CustomUser.objects.filter(role='serviteur', referant=request.user)
+        .order_by('first_name', 'last_name')
+    )
+    # Les formations inactives sont invisibles chez les serviteurs : on les
+    # exclut aussi des statistiques du référent.
+    formations_count = Formation.objects.filter(is_active=True).count()
+    sf_queryset = ServiteurFormation.objects.filter(
+        serviteur__in=serviteurs, formation__is_active=True
+    )
+    sf_stats = {
+        # Formations assignées à mes serviteurs (cohérent avec validé + en cours + échoué)
+        'total': sf_queryset.count(),
+        'validated': sf_queryset.filter(statut=1).count(),
+        'failed': sf_queryset.filter(statut=0).count(),
+        'not_transmitted': sf_queryset.filter(statut=3).count(),
+        'pending': sf_queryset.filter(statut=2).count(),
+        # Formations effectivement soumises par mes serviteurs
+        'submitted': sf_queryset.filter(date_soumission__isnull=False).count(),
+    }
+
+    # Statistiques détaillées par serviteur
+    sf_rows = sf_queryset.values(
+        'serviteur__id', 'serviteur__first_name', 'serviteur__last_name',
+        'serviteur__username', 'statut', 'score', 'date_soumission')
+    per_serviteur = {}
+    for row in sf_rows:
+        sid = row['serviteur__id']
+        entry = per_serviteur.setdefault(sid, {
+            'first_name': row['serviteur__first_name'],
+            'last_name': row['serviteur__last_name'],
+            'username': row['serviteur__username'],
+            'total': 0, 'validated': 0, 'failed': 0, 'pending': 0, 'not_transmitted': 0,
+            'score_sum': 0, 'score_count': 0,
+        })
+        entry['total'] += 1
+        if row['statut'] == 1:
+            entry['validated'] += 1
+        elif row['statut'] == 0:
+            entry['failed'] += 1
+        elif row['statut'] == 3:
+            entry['not_transmitted'] += 1
+        else:
+            entry['pending'] += 1
+        # Seules les formations soumises ont un score exploitable
+        if row['date_soumission'] is not None and row['score'] is not None:
+            entry['score_sum'] += row['score']
+            entry['score_count'] += 1
+
+    # Vertumètres (soumis dans les 7 derniers jours)
+    vertumetres_recent = {
+        v.serviteur_id: v for v in ServiteurVertumetre.objects.filter(
+            serviteur__in=serviteurs
+        )
+    }
+
+    serviteur_rows = []
+    for s in serviteurs:
+        stats = per_serviteur.get(s.pk, {
+            'first_name': s.first_name, 'last_name': s.last_name,
+            'username': s.username,
+            'total': 0, 'validated': 0, 'failed': 0, 'pending': 0, 'not_transmitted': 0,
+            'score_sum': 0, 'score_count': 0,
+        })
+        stats['score_moyen'] = (
+            round(stats['score_sum'] / stats['score_count'] * 0.2, 1)
+            if stats['score_count'] else 0
+        )
+        stats['serviteur'] = s
+        stats['vertumetre'] = vertumetres_recent.get(s.pk)
+        serviteur_rows.append(stats)
+
+    return render(request, 'referant/dashboard.html', {
+        'serviteurs': serviteurs,
+        'formations_count': formations_count,
+        'sf_stats': sf_stats,
+        'serviteur_rows': serviteur_rows,
+    })
+
+@login_required(login_url='/')
+def referant_serviteurs(request):
+    if request.user.role != 'referant':
+        return redirect('/')
+    assigned = CustomUser.objects.filter(role='serviteur', referant=request.user).order_by('-date_joined')
+    # Serviteurs déjà attribués — ne pas afficher dans la liste ni dans le dropdown
+    already_assigned = set(s['pk'] for s in assigned.values('pk')) if assigned else set()
+    # Tous les serviteurs non encore attribués — pour le dropdown de « Ajouter »
+    unassigned = CustomUser.objects.filter(
+        role='serviteur', referant__isnull=True
+    ).exclude(pk__in=already_assigned).order_by('date_joined')
+    serviteur_form = ServiteurForm(require_password=True)
+    success_message = None
+    error_message = None
+    if request.method == 'POST':
+        if 'assign_action' in request.POST:
+            selected_pk = request.POST.get('assign_serviteur_pk', '').strip()
+            if selected_pk:
+                try:
+                    serviteur = CustomUser.objects.get(pk=selected_pk, role='serviteur')
+                    if serviteur.referant_id is None:
+                        serviteur.referant = request.user
+                        serviteur.save()
+                        success_message = f"Serviteur '{serviteur.username}' attribué."
+                    else:
+                        error_message = "Ce serviteur est déjà attribué à un référent."
+                except CustomUser.DoesNotExist:
+                    error_message = "Le serviteur sélectionné n'existe pas."
+            else:
+                error_message = "Veuillez sélectionner un serviteur dans la liste."
+        else:
+            serviteur_form = ServiteurForm(request.POST, request.FILES, require_password=True)
+            if serviteur_form.is_valid():
+                serviteur = serviteur_form.save()
+                serviteur.role = 'serviteur'
+                serviteur.referant = request.user
+                serviteur.save()
+                success_message = f"Serviteur '{serviteur.username}' créé et attribué."
+                serviteur_form = ServiteurForm(require_password=True)
+    return render(request, 'referant/serviteurs.html', {
+        'serviteurs': assigned,
+        'unassigned': unassigned,
+        'serviteur_form': serviteur_form,
+        'success_message': success_message,
+        'error_message': error_message,
+    })
+
+@login_required(login_url='/')
+def referant_vertumetres(request):
+    if request.user.role != 'referant':
+        return redirect('/')
+    serviteurs = list(
+        CustomUser.objects.filter(role='serviteur', referant=request.user)
+        .order_by('first_name', 'last_name')
+    )
+    vert_map = {
+        v.serviteur_id: v
+        for v in ServiteurVertumetre.objects.filter(serviteur__in=serviteurs)
+    }
+    for s in serviteurs:
+        s.vert = vert_map.get(s.pk)
+    return render(request, 'referant/vertumetres.html', {'serviteurs': serviteurs})
+
+
+def _format_duration(seconds):
+    """Formate une durée en secondes : '2 j 4 h', '4 h 12 min', '12 min', '45 s'."""
+    seconds = max(0, int(seconds))
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, secs = divmod(rem, 60)
+    if days:
+        return f"{days} j {hours} h" if hours else f"{days} j"
+    if hours:
+        return f"{hours} h {minutes} min" if minutes else f"{hours} h"
+    if minutes:
+        return f"{minutes} min"
+    return f"{secs} s"
+
+
+def _load_assigned_serviteur(request, pk):
+    """Charge le serviteur assigné au référent courant; redirect si non autorisé ou introuvable."""
+    if request.user.role != 'referant':
+        return None, redirect('/')
+    try:
+        serviteur = CustomUser.objects.get(pk=pk, role='serviteur', referant=request.user)
+    except CustomUser.DoesNotExist:
+        return None, redirect('/')
+    return serviteur, None
+
+
+@login_required(login_url='/')
+def referant_serviteur_detail(request, pk):
+    """Détail d'un serviteur assigné : informations + liens vers ses formations / vertumètre."""
+    serviteur, err = _load_assigned_serviteur(request, pk)
+    if err:
+        return err
+    formations = Formation.objects.all().order_by('name')
+    sf_list = ServiteurFormation.objects.filter(serviteur=serviteur).select_related('formation').order_by('-date_debut')
+    for sf in sf_list:
+        sf.score_20 = round(sf.score * 0.2, 1)
+    stats = {
+        'total': sf_list.count(),
+        'in_progress': sum(1 for s in sf_list if s.display_status == 'progress'),
+        'valid': sum(1 for s in sf_list if s.display_status == 'valid'),
+        'failed': sum(1 for s in sf_list if s.display_status == 'failed'),
+        'not_transmitted': sum(1 for s in sf_list if s.display_status == 'not_transmitted'),
+    }
+
+    # Formations en cours : temps restant avant l'échéance du questionnaire
+    now = timezone.now()
+    in_progress_list = []
+    for sf in sf_list:
+        if sf.display_status != 'progress':
+            continue
+        sf.remaining_seconds = None
+        sf.remaining_label = ''
+        sf.progress_percent = 0
+        sf.deadline_passed = False
+        sf.urgency = 'normal'
+        if sf.date_limite:
+            delta = sf.date_limite - now
+            total_seconds = int(delta.total_seconds())
+            sf.remaining_seconds = total_seconds
+            sf.deadline_passed = total_seconds <= 0
+            sf.remaining_label = _format_duration(abs(total_seconds))
+            if total_seconds <= 0:
+                sf.urgency = 'expired'
+            elif total_seconds < 24 * 3600:
+                sf.urgency = 'critical'
+            elif total_seconds < 48 * 3600:
+                sf.urgency = 'warning'
+        if sf.date_debut and sf.date_limite and sf.date_limite > sf.date_debut:
+            span = (sf.date_limite - sf.date_debut).total_seconds()
+            elapsed = (now - sf.date_debut).total_seconds()
+            sf.progress_percent = max(0, min(100, int(elapsed / span * 100)))
+        in_progress_list.append(sf)
+
+    # Formations commencées mais jamais transmises (délai dépassé)
+    not_transmitted_list = [s for s in sf_list if s.display_status == 'not_transmitted']
+    for sf in not_transmitted_list:
+        if sf.date_limite:
+            overdue = (now - sf.date_limite).total_seconds()
+            sf.overdue_label = _format_duration(int(overdue))
+            sf.overdue_seconds = int(overdue)
+        else:
+            sf.overdue_label = ''
+            sf.overdue_seconds = 0
+    stats['not_transmitted'] = len(not_transmitted_list)
+
+    # Détail des réponses par formation soumise
+    for sf in sf_list:
+        summary = serviteur_answers_summary(sf.formation, sf.html_responses)
+        sf.answers_total = summary['total']
+        sf.answers_correct = summary['correct']
+        sf.answers_incorrect = summary['incorrect']
+        sf.answers_detail = summary['detail']
+        sf.has_detail = summary['total'] > 0
+
+    # Score moyen sur les formations soumises
+    submitted = [s for s in sf_list if s.date_soumission is not None]
+    stats['score_moyen'] = (
+        round(sum(s.score_20 for s in submitted) / len(submitted), 1) if submitted else 0
+    )
+
+    # Vertumètre du serviteur
+    vert = ServiteurVertumetre.objects.filter(serviteur=serviteur).first()
+
+    return render(request, 'referant/serviteur_detail.html', {
+        'serviteur': serviteur,
+        'formations': formations,
+        'sf_list': sf_list,
+        'in_progress_list': in_progress_list,
+        'submitted_list': submitted,
+        'not_transmitted_list': not_transmitted_list,
+        'stats': stats,
+        'vert': vert,
+    })
+
+
+@login_required(login_url='/')
+def referant_serviteur_questionnaire(request, pk, sf_pk):
+    """Consultation détaillée des réponses d'un questionnaire soumis par un serviteur."""
+    serviteur, err = _load_assigned_serviteur(request, pk)
+    if err:
+        return err
+
+    sf = get_object_or_404(
+        ServiteurFormation.objects.select_related('formation'),
+        pk=sf_pk, serviteur=serviteur,
+    )
+
+    summary = serviteur_answers_summary(sf.formation, sf.html_responses)
+    sf.score_20 = round(sf.score * 0.2, 1)
+
+    # Informations complémentaires issues du formulaire de saisie du quiz HTML
+    identity = {}
+    for key in ('nom', 'prenom', 'famille', 'tribu', 'departement'):
+        value = (sf.html_responses or {}).get(key)
+        if value:
+            identity[key] = value
+    sf.identity = identity
+
+    return render(request, 'referant/serviteur_questionnaire.html', {
+        'serviteur': serviteur,
+        'sf': sf,
+        'answers_total': summary['total'],
+        'answers_correct': summary['correct'],
+        'answers_incorrect': summary['incorrect'],
+        'answers_detail': summary['detail'],
+        'has_detail': summary['total'] > 0,
+    })
+
+
+@login_required(login_url='/')
+def referant_serviteur_formations(request, pk):
+    """Liste des formations du serviteur (mis à disposition du référent)."""
+    serviteur, err = _load_assigned_serviteur(request, pk)
+    if err:
+        return err
+    serviteur_sf = ServiteurFormation.objects.filter(serviteur=serviteur).select_related('formation')
+    servitations_map = {sf.formation_id: sf for sf in serviteur_sf}
+    # Seules les formations actives sont visibles chez les référents,
+    # comme chez les serviteurs (cf. serviteur_formations).
+    formations = Formation.objects.filter(is_active=True).order_by('name')
+    data = []
+    status_map = {
+        'valid': 'valid',
+        'failed': 'failed',
+        'not_transmitted': 'not_transmitted',
+        'progress': 'in_progress',
+    }
+    for formation in formations:
+        sf = servitations_map.get(formation.pk)
+        if sf:
+            status = status_map.get(sf.display_status, 'in_progress')
+            score20 = round(sf.score * 0.2, 1) if sf.score else 0
+        else:
+            status = 'not_started'
+            score20 = 0
+        data.append({
+            'formation': formation,
+            'status': status,
+            'score20': score20,
+        })
+    stats = {
+        'total': len(data),
+        'in_progress': sum(1 for d in data if d['status'] == 'in_progress'),
+        'completed': sum(1 for d in data if d['status'] == 'completed'),
+        'valid': sum(1 for d in data if d['status'] == 'valid'),
+        'failed': sum(1 for d in data if d['status'] == 'failed'),
+        'not_transmitted': sum(1 for d in data if d['status'] == 'not_transmitted'),
+    }
+    return render(request, 'referant/serviteur_formations.html', {
+        'data': data,
+        'stats': stats,
+        'serviteur': serviteur,
+    })
+
+
+@login_required(login_url='/')
+def referant_serviteur_vertumetre(request, pk):
+    """Vue Vertumètre d'un serviteur spécifique (mis à disposition du référent)."""
+    serviteur, err = _load_assigned_serviteur(request, pk)
+    if err:
+        return err
+    vert, created = ServiteurVertumetre.objects.get_or_create(serviteur=serviteur)
+    return render(request, 'referant/serviteur_vertumetre.html', {
+        'serviteur': serviteur,
+        'vert': vert,
+    })
+
+
+@login_required(login_url='/')
+@never_cache
+def referant_serviteur_message(request, pk):
+    """Le référent envoie un message à l'un de ses serviteurs."""
+    serviteur, err = _load_assigned_serviteur(request, pk)
+    if err:
+        return err
+
+    success_message = None
+    error_message = None
+    if request.method == 'POST':
+        subject = (request.POST.get('subject') or '').strip()
+        body = (request.POST.get('body') or '').strip()
+        if not subject:
+            error_message = "Veuillez saisir un objet."
+        elif not body:
+            error_message = "Veuillez saisir un message."
+        elif len(body) > 5000:
+            error_message = "Le message ne doit pas dépasser 5000 caractères."
+        else:
+            ReferentMessage.objects.create(
+                sender=request.user,
+                recipient=serviteur,
+                subject=subject[:200],
+                body=body,
+            )
+            success_message = (
+                f"Message envoyé à {serviteur.first_name} {serviteur.last_name} "
+                f"({serviteur.username}) : il apparaît uniquement dans la "
+                f"messagerie de ce serviteur."
+            )
+
+    messages_envoyes = ReferentMessage.objects.filter(
+        sender=request.user, recipient=serviteur
+    ).select_related('recipient')
+
+    # Réponses envoyées par le serviteur à ce référent
+    reponses_recues = ReferentMessage.objects.filter(
+        recipient=request.user, sender=serviteur
+    ).select_related('sender', 'reply_to')
+
+    # Les réponses sont marquées comme lues à leur consultation
+    unread_replies = reponses_recues.filter(read_at__isnull=True)
+    if unread_replies.exists():
+        unread_replies.update(read_at=timezone.now())
+
+    return render(request, 'referant/serviteur_message.html', {
+        'serviteur': serviteur,
+        'messages_envoyes': messages_envoyes,
+        'reponses_recues': reponses_recues,
+        'success_message': success_message,
+        'error_message': error_message,
+    })
+
+
+@login_required(login_url='/')
+@never_cache
+def referant_messages(request):
+    """Boîte d'envoi du référent : tous les messages envoyés à ses serviteurs."""
+    if request.user.role != 'referant':
+        return redirect('/')
+    messages_envoyes = ReferentMessage.objects.filter(
+        sender=request.user
+    ).select_related('recipient')
+
+    # Réponses reçues des serviteurs (marquées comme lues à la consultation)
+    reponses_recues = ReferentMessage.objects.filter(
+        recipient=request.user
+    ).select_related('sender')
+    unread = reponses_recues.filter(read_at__isnull=True)
+    if unread.exists():
+        unread.update(read_at=timezone.now())
+
+    return render(request, 'referant/messages.html', {
+        'messages_envoyes': messages_envoyes,
+        'reponses_recues': reponses_recues,
+    })
+
+
+@login_required(login_url='/')
+@never_cache
+def serviteur_messages(request):
+    """Boîte de réception du serviteur : messages reçus de son référent + réponses envoyées."""
+    if request.user.role != 'serviteur':
+        return redirect('/')
+
+    # Un message lu à sa première consultation
+    unread = ReferentMessage.objects.filter(
+        recipient=request.user, read_at__isnull=True
+    )
+    if unread.exists():
+        unread.update(read_at=timezone.now())
+
+    messages_recus = ReferentMessage.objects.filter(
+        recipient=request.user
+    ).select_related('sender', 'reply_to')
+
+    # Réponses déjà envoyées par le serviteur (affichées sous le message d'origine)
+    messages_envoyes = ReferentMessage.objects.filter(
+        sender=request.user
+    ).select_related('recipient', 'reply_to')
+
+    return render(request, 'serviteur/messages.html', {
+        'messages_recus': messages_recus,
+        'messages_envoyes': messages_envoyes,
+        'referent': request.user.referant,
+    })
+
+
+@login_required(login_url='/')
+@never_cache
+def serviteur_message_reply(request, pk):
+    """Le serviteur répond à un message reçu de son référent."""
+    if request.user.role != 'serviteur':
+        return redirect('/')
+
+    message = get_object_or_404(
+        ReferentMessage.objects.select_related('sender'),
+        pk=pk, recipient=request.user,
+    )
+
+    if request.method != 'POST':
+        return redirect('traning:serviteur_messages')
+
+    body = (request.POST.get('body') or '').strip()
+    if not body:
+        return redirect('traning:serviteur_messages')
+    if len(body) > 5000:
+        body = body[:5000]
+
+    ReferentMessage.objects.create(
+        sender=request.user,
+        recipient=message.sender,
+        subject=message.subject[:200],
+        body=body,
+        reply_to=message,
+    )
+    return redirect('traning:serviteur_messages')
+
+
 def login_view(request):
     if request.method == 'POST':
         username = (request.POST.get('username') or '').strip()
@@ -1454,19 +2189,47 @@ def login_view(request):
 
         # Sécurise les POST incomplets (évite des exceptions/500)
         if not username or not password:
-            return render(request, 'login.html', {'login_error': True})
+            return render(request, 'login.html', {'login_fields_missing': True})
 
         try:
             user = authenticate(request, username=username, password=password)
+        except OperationalError:
+            # Base momentanément inaccessible (verrou SQLite) : on ne dit pas
+            # à l'utilisateur que son mot de passe est faux, on l'invite à réessayer.
+            logger.exception("Connexion impossible : base de données occupée")
+            return render(request, 'login.html', {'login_busy': True})
         except Exception:
             # Ne pas révéler l'erreur interne au client
+            logger.exception("Erreur inattendue lors de l'authentification")
             return render(request, 'login.html', {'login_error': True})
 
         if user is not None:
+            # La session précédente est mémorisée : Django la détruit quand on
+            # se connecte avec un autre compte, ce qui déconnecte les autres
+            # onglets du même navigateur (« la session expire »).
+            previous_key = request.session.session_key
+            previous_data = None
+            if previous_key and _get_user_session_key(request) != str(user.pk):
+                previous_data = dict(request.session.items())
+
             try:
                 login(request, user)
+                # Sauvegarde immédiate : si l'écriture échoue, on le sait ici
+                # au lieu de laisser le navigateur avec un cookie invalide.
+                request.session.save()
+            except OperationalError:
+                logger.exception("Connexion impossible : base de données occupée")
+                _restore_session(previous_key, previous_data)
+                return render(request, 'login.html', {'login_busy': True})
             except Exception:
+                logger.exception("Erreur inattendue lors de l'ouverture de la session")
+                _restore_session(previous_key, previous_data)
                 return render(request, 'login.html', {'login_error': True})
+
+            if previous_data:
+                # On restaure l'ancienne session : les autres onglets restent
+                # connectés avec le compte précédent.
+                _restore_session(previous_key, previous_data)
 
             # ✅ ADMIN
             if user.is_superuser or getattr(user, 'role', None) == 'admin':
@@ -1476,9 +2239,322 @@ def login_view(request):
             if getattr(user, 'role', None) == 'serviteur':
                 return redirect('traning:serviteur_dashboard')
 
+            if getattr(user, 'role', None) == 'referant':
+                # Le nom d'URL déclaré dans traning/urls.py est
+                # « referant_dashboard » (sans « e » après le r) : utiliser
+                # « referent_dashboard » provoquait un NoReverseMatch (500)
+                # à la connexion d'un référent.
+                return redirect('traning:referant_dashboard')
+
             return render(request, 'login.html', {'login_error': True})
 
         return render(request, 'login.html', {'login_error': True})
 
     return render(request, 'login.html')
+
+
+def _restore_session(session_key, session_data):
+    """Recrée une ligne de session (utilisé pour ne pas perdre les onglets
+    déjà connectés et pour éviter un cookie pointant vers une session
+    supprimée)."""
+    if not session_key or not session_data:
+        return
+    try:
+        store = SessionStore(session_key=session_key)
+        # Écriture directe du cache : update() rechargerait la session et
+        # invaliderait la clé si la ligne n'existe plus (même approach que
+        # django.contrib.sessions.backends.base.SessionBase.cycle_key).
+        store._session_cache = dict(session_data)
+        store.modified = True
+        try:
+            # La ligne a été supprimée par Django : il faut la recréer.
+            store.save(must_create=True)
+        except CreateError:
+            # La session existe encore : on la met simplement à jour.
+            store.save()
+    except Exception:
+        logger.exception("Impossible de restaurer la session %s", session_key)
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.db import IntegrityError
+
+@login_required(login_url='/')
+def admin_referants(request):
+    """Gestion des référents : création et attribution des serviteurs."""
+
+    # Vérification des droits d'accès
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        return redirect('/')
+
+    # Traitement des formulaires
+    if request.method == 'POST':
+
+        # ==========================================
+        # CRÉATION D'UN RÉFÉRENT
+        # ==========================================
+        if 'create_referant' in request.POST:
+            form = AdminReferantForm(request.POST)
+
+            if form.is_valid():
+                referent = form.save(commit=False)
+
+                # S'assurer que le rôle correspond au filtre ci-dessous
+                referent.role = 'referant'
+                referent.save()
+
+                messages.success(
+                    request,
+                    f"Le référent « {referent.first_name} "
+                    f"{referent.last_name} » a été créé avec succès."
+                )
+
+                return redirect('traning:admin_referants')
+
+            else:
+                messages.error(
+                    request,
+                    "Le formulaire contient des erreurs. "
+                    "Veuillez vérifier les champs."
+                )
+
+        # ==========================================
+        # CRÉATION ET ATTRIBUTION D'UN SERVITEUR
+        # ==========================================
+        elif 'assign' in request.POST:
+            pk = request.POST.get('assign_referant')
+            serviteur_pk = request.POST.get('assign_serviteur_pk', '').strip()
+            username = request.POST.get('assign_username', '').strip()
+            first_name = request.POST.get('assign_first_name', '').strip()
+            last_name = request.POST.get('assign_last_name', '').strip()
+            email = request.POST.get('assign_email', '').strip()
+
+            form = AdminReferantForm()
+
+            if not pk:
+                messages.error(request, "Veuillez sélectionner un référent.")
+
+            elif serviteur_pk:
+                try:
+                    referent = CustomUser.objects.get(
+                        pk=pk,
+                        role='referant'
+                    )
+                    existing = CustomUser.objects.get(
+                        pk=serviteur_pk, role='serviteur'
+                    )
+                except CustomUser.DoesNotExist:
+                    messages.error(request, "Le serviteur sélectionné n'existe pas.")
+                    form = AdminReferantForm()
+
+                else:
+                    existing.referant = referent
+                    existing.save()
+                    messages.success(
+                        request,
+                        f"Le serviteur « {existing.username} » "
+                        f"(#{serviteur_pk}) attribué au référent."
+                    )
+                    return redirect('traning:admin_referants')
+
+            elif not username or not first_name or not last_name:
+                messages.error(
+                    request,
+                    "Veuillez soit sélectionner un serviteur existant, "
+                    "soit renseigner le nom d'utilisateur, "
+                    "le prénom et le nom du serviteur."
+                )
+
+            else:
+                try:
+                    referent = CustomUser.objects.get(
+                        pk=pk,
+                        role='referant'
+                    )
+
+                    serviteur = CustomUser.objects.create_user(
+                        username=username,
+                        first_name=first_name,
+                        last_name=last_name,
+                        email=email,
+                        role='serviteur'
+                    )
+
+                    serviteur.referant = referent
+                    serviteur.save()
+
+                    messages.success(
+                        request,
+                        f"Le serviteur « {serviteur.username} » "
+                        f"attribué au référent."
+                    )
+
+                    return redirect('traning:admin_referants')
+
+                except CustomUser.DoesNotExist:
+                    messages.error(request, "Le référent sélectionné est introuvable.")
+
+                except IntegrityError:
+                    messages.error(
+                        request,
+                        "Ce nom d'utilisateur est déjà utilisé."
+                    )
+
+                except Exception as e:
+                    messages.error(
+                        request,
+                        f"Une erreur est survenue : {str(e)}"
+                    )
+
+        # ==========================================
+        # RÉINITIALISATION DU MOT DE PASSE
+        # ==========================================
+        elif 'reset_password' in request.POST:
+            ref_pk = request.POST.get('reset_referant')
+            new_password = request.POST.get('reset_password', '').strip()
+            confirm = request.POST.get('reset_password_confirm', '').strip()
+
+            form = AdminReferantForm()
+
+            if not ref_pk:
+                messages.error(request, "Veuillez sélectionner un référent.")
+
+            elif len(new_password) < 8:
+                messages.error(
+                    request,
+                    "Le mot de passe doit contenir au moins 8 caractères."
+                )
+
+            elif new_password != confirm:
+                messages.error(
+                    request,
+                    "Les deux mots de passe ne correspondent pas."
+                )
+
+            else:
+                try:
+                    referent = CustomUser.objects.get(pk=ref_pk, role='referant')
+                except CustomUser.DoesNotExist:
+                    messages.error(request, "Le référent sélectionné est introuvable.")
+                else:
+                    referent.set_password(new_password)
+                    referent.save()
+                    messages.success(
+                        request,
+                        f"Nouveau mot de passe défini pour « {referent.username} »."
+                    )
+                    return redirect('traning:admin_referants')
+
+        else:
+            form = AdminReferantForm()
+
+    else:
+        form = AdminReferantForm()
+
+    # ==========================================
+    # RÉCUPÉRATION DES DONNÉES À AFFICHER
+    # ==========================================
+    referents = CustomUser.objects.filter(
+        role='referant'
+    ).order_by('-date_joined')
+
+    # Serviteurs non encore attribués — disponibles pour affectation
+    serviteurs = CustomUser.objects.filter(
+        role='serviteur',
+        referant__isnull=True,
+    ).order_by('-date_joined')
+
+    # Tous les serviteurs (y compris déjà attribués) — pour les listes de référence
+    all_serviteurs = CustomUser.objects.filter(
+        role='serviteur'
+    ).order_by('-date_joined')
+
+    departements = Departement.objects.all().order_by('name')
+
+    # ==========================================
+    # INFORMATIONS DÉTAILLÉES (référents + serviteurs)
+    # ==========================================
+
+    # Progression de chaque serviteur
+    serviteur_stats = {}
+    for sf in ServiteurFormation.objects.filter(
+        serviteur__role='serviteur'
+    ).select_related('formation'):
+        entry = serviteur_stats.setdefault(sf.serviteur_id, {
+            'total': 0, 'valid': 0, 'failed': 0,
+            'progress': 0, 'not_transmitted': 0,
+            'score_sum': 0, 'score_count': 0,
+        })
+        entry['total'] += 1
+        status = sf.display_status
+        if status == 'valid':
+            entry['valid'] += 1
+        elif status == 'failed':
+            entry['failed'] += 1
+        elif status == 'not_transmitted':
+            entry['not_transmitted'] += 1
+        else:
+            entry['progress'] += 1
+        if sf.date_soumission is not None:
+            entry['score_sum'] += sf.score
+            entry['score_count'] += 1
+
+    # Vertumètres des serviteurs
+    vertumetres = {
+        v.serviteur_id: v
+        for v in ServiteurVertumetre.objects.filter(serviteur__role='serviteur')
+    }
+
+    empty_stats = {
+        'total': 0, 'valid': 0, 'failed': 0,
+        'progress': 0, 'not_transmitted': 0,
+        'score_sum': 0, 'score_count': 0,
+    }
+
+    for ref in referents:
+        ref.serviteurs_list = list(ref.serviteurs_assignes.all())
+
+        ref_total = ref_valid = ref_failed = 0
+        ref_progress = ref_not_transmitted = 0
+        ref_score_sum = ref_score_count = 0
+
+        for s in ref.serviteurs_list:
+            st = serviteur_stats.get(s.pk, empty_stats)
+            s.sf_total = st['total']
+            s.sf_valid = st['valid']
+            s.sf_failed = st['failed']
+            s.sf_progress = st['progress']
+            s.sf_not_transmitted = st['not_transmitted']
+            s.sf_score_moyen = (
+                round(st['score_sum'] / st['score_count'] * 0.2, 1)
+                if st['score_count'] else 0
+            )
+            s.vertumetre = vertumetres.get(s.pk)
+
+            ref_total += st['total']
+            ref_valid += st['valid']
+            ref_failed += st['failed']
+            ref_progress += st['progress']
+            ref_not_transmitted += st['not_transmitted']
+            ref_score_sum += st['score_sum']
+            ref_score_count += st['score_count']
+
+        ref.sf_total = ref_total
+        ref.sf_valid = ref_valid
+        ref.sf_failed = ref_failed
+        ref.sf_progress = ref_progress
+        ref.sf_not_transmitted = ref_not_transmitted
+        ref.sf_score_moyen = (
+            round(ref_score_sum / ref_score_count * 0.2, 1)
+            if ref_score_count else 0
+        )
+
+    return render(request, 'admin/referants.html', {
+        'referents': referents,
+        'serviteurs': serviteurs,
+        'all_serviteurs': all_serviteurs,
+        'departements': departements,
+        'form': form,
+    })
 

@@ -34,6 +34,21 @@
         .sidebar-item { transition: all 0.2s; }
         .sidebar-item.active { background-color: rgba(255, 255, 255, 0.2); border-left: 4px solid white; }
         .sidebar-item:not(.active):hover { background-color: rgba(255, 255, 255, 0.1); padding-left: 1.75rem; }
+        .ref-form input[type="text"], .ref-form input[type="email"], .ref-form input[type="password"],
+        .ref-form input[type="number"], .ref-form input[type="tel"], .ref-form select, .ref-form textarea,
+        .ref-form input[type="file"] {
+            width: 100%; background: rgba(255, 255, 255, 0.7); border: 1px solid #e5e7eb;
+            border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.875rem; color: #34495E;
+            transition: all 0.2s ease;
+        }
+        .ref-form input:focus, .ref-form select:focus, .ref-form textarea:focus {
+            outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4); border-color: transparent;
+        }
+        .ref-form input[type="file"] { padding: 0.5rem 0.75rem; }
+        .ref-form input[type="file"]::file-selector-button {
+            background: #eef2ff; color: #4338ca; font-weight: 600; border: 0;
+            border-radius: 0.5rem; padding: 0.4rem 0.8rem; margin-right: 0.75rem; cursor: pointer;
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -41,6 +56,7 @@
     <!-- Sidebar -->
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
 
+    {% if user.role != 'referant' %}
     <aside id="sidebar" class="fixed left-0 top-0 h-screen w-72 bg-gradient-to-b from-emerald-50/95 to-emerald-100/80 backdrop-blur-xl text-emerald-800 flex flex-col z-50 shadow-xl border-r-0 rounded-r-3xl transition-transform duration-300 -translate-x-full md:translate-x-0">
         <div class="px-4 pt-5 pb-4 border-b border-emerald-200/50 flex flex-col items-center gap-2">
             <img src="/media/Logo.png" alt="Logo Formation VH" class="w-20 h-20 object-contain drop-shadow-xl" style="background: none;">
@@ -72,6 +88,18 @@
                 <span>Vertumètre</span>
             </a>
 
+            <!-- Bouton Messages du référent (juste au-dessus du bouton WhatsApp) -->
+            <a href="{% url 'traning:serviteur_messages' %}"
+               class="group flex items-center px-4 py-4 rounded-xl text-sm font-medium transition-all hover:bg-emerald-500/10 {% if request.resolver_match.url_name == 'serviteur_messages' %}bg-emerald-500/10{% endif %}">
+                <span class="relative w-5 h-5 mr-4 flex-shrink-0">
+                    <i class="fas fa-envelope-open-text absolute inset-0 text-emerald-600"></i>
+                    {% if serviteur_unread_messages %}
+                        <span class="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{{ serviteur_unread_messages }}</span>
+                    {% endif %}
+                </span>
+                <span class="text-emerald-700 font-semibold">Messages du référent</span>
+            </a>
+
             <!-- Bouton WhatsApp groupe -->
             <a href="https://chat.whatsapp.com/JGbVRrhhDknLnCak9nqbaL" target="_blank" rel="noopener noreferrer"
                class="group flex items-center px-4 py-4 rounded-xl text-sm font-medium transition-all hover:bg-[#25D366]/10">
@@ -88,6 +116,10 @@
             </a>
         </div>
     </aside>
+    {% endif %}
+
+    <!-- Sidebar customisation par role (referant override) -->
+    {% block referant_sidebar %}{% endblock %}
 
     <!-- Main content -->
     <main class="ml-0 md:ml-72 min-h-screen bg-emerald-50/90">

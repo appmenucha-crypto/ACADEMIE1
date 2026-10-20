@@ -29,7 +29,24 @@
     <!-- Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <a href="{% url 'traning:admin_courses' %}" class="text-sm text-gray-500 hover:text-accent-blue">← Toutes Formations</a>
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center flex-wrap">
+            {% if formation.is_active %}
+                <span class="px-3 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-700">
+                    <i class="fas fa-eye mr-1"></i>Active — visible chez les serviteurs
+                </span>
+            {% else %}
+                <span class="px-3 py-2 rounded-xl text-xs font-bold bg-gray-200 text-gray-600">
+                    <i class="fas fa-eye-slash mr-1"></i>Inactive — invisible chez les serviteurs
+                </span>
+            {% endif %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="toggle_active" value="{{ formation.pk }}">
+                <button type="submit" class="{% if formation.is_active %}bg-amber-500 hover:bg-amber-600 text-white{% else %}bg-emerald-500 hover:bg-emerald-600 text-white{% endif %} px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2">
+                    <i class="fas {% if formation.is_active %}fa-toggle-on{% else %}fa-toggle-off{% endif %}"></i>
+                    {% if formation.is_active %}Désactiver{% else %}Activer{% endif %}
+                </button>
+            </form>
             <button onclick="openModal('addAudioModal')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2">
                 <i class="fas fa-plus-circle"></i> Ajouter Audios
             </button>

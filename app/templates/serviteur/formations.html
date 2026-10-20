@@ -42,6 +42,14 @@
                     ✅ Terminé {{ score20 }}/20
                 </span>
 
+            {% elif status == 'not_transmitted' %}
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
+                    <div class="bg-orange-400 h-3 rounded-full" style="width: 100%"></div>
+                </div>
+                <span class="px-3 py-1 bg-orange-100 text-orange-800 rounded-full font-semibold text-sm">
+                    ⏳ Non transmis
+                </span>
+
             {% elif status == 'in_progress' %}
                 <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
                     <div class="bg-gradient-to-r from-emerald-400 to-emerald-600 h-3 rounded-full" style="width: 60%"></div>

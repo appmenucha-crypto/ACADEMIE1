@@ -1,0 +1,132 @@
+{% extends "referant/base.html" %}
+
+{% block page_title %}Formations — {{ serviteur.first_name }} {{ serviteur.last_name }}{% endblock %}
+{% block subtitle %}Formations du serviteur {{ serviteur.username }}{% endblock %}
+
+{% block serviteur_content %}
+<!-- Statistiques -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+    <div class="stat-card bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-book text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-blue-100 text-sm font-medium">Total</p>
+                <p class="text-3xl font-bold">{{ stats.total }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-play-circle text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-amber-100 text-sm font-medium">En cours</p>
+                <p class="text-3xl font-bold">{{ stats.in_progress }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-emerald-100 text-sm font-medium">Validées</p>
+                <p class="text-3xl font-bold">{{ stats.valid }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card bg-gradient-to-br from-red-500 to-red-600 text-white p-6 sm:p-8 rounded-3xl shadow-2xl hover:shadow-3xl">
+        <div class="flex items-center">
+            <i class="fas fa-times-circle text-3xl opacity-80 mr-4"></i>
+            <div>
+                <p class="text-red-100 text-sm font-medium">Échouées</p>
+                <p class="text-3xl font-bold">{{ stats.failed }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold text-charcoal flex items-center">
+        <i class="fas fa-list-check text-indigo-500 mr-3"></i>Détail des formations
+    </h2>
+    <div class="flex items-center gap-2">
+        <a href="{% url 'traning:referant_serviteur_vertumetre' serviteur.pk %}" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow transition-all inline-flex items-center gap-2">
+            <i class="fas fa-hands-praying"></i>Vertumètre
+        </a>
+        <a href="{% url 'traning:referant_serviteur_detail' serviteur.pk %}" class="bg-gray-100 hover:bg-gray-200 text-charcoal px-4 py-2 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2">
+            <i class="fas fa-user"></i>Fiche du serviteur
+        </a>
+    </div>
+</div>
+
+{% if data %}
+<div class="hidden sm:block overflow-x-auto">
+    <table class="w-full">
+        <thead>
+            <tr class="bg-gray-50/50 border-b border-gray-100 text-xs">
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Formation</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Statut</th>
+                <th class="px-4 py-3 text-left font-bold text-gray-400 uppercase tracking-wider">Score</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for item in data %}
+            <tr class="hover:bg-indigo-50/30 transition-colors">
+                <td class="px-4 py-4">
+                    <span class="font-medium text-charcoal">{{ item.formation.name }}</span>
+                </td>
+                <td class="px-4 py-4">
+                    {% if item.status == 'valid' %}
+                        <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-100">Validé</span>
+                    {% elif item.status == 'failed' %}
+                        <span class="px-3 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold border border-red-100">Échu</span>
+                    {% elif item.status == 'not_transmitted' %}
+                        <span class="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold border border-orange-100">Non transmis</span>
+                    {% elif item.status == 'completed' %}
+                        <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold border border-blue-100">Terminé</span>
+                    {% elif item.status == 'in_progress' %}
+                        <span class="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold border border-amber-100">En cours</span>
+                    {% else %}
+                        <span class="px-3 py-1 bg-gray-50 text-gray-500 rounded-full text-xs font-bold border border-gray-100">Pas commencé</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-4">
+                    <span class="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-bold border border-purple-100">{{ item.score20 }}/20</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Mobile -->
+<div class="block sm:hidden space-y-3">
+    {% for item in data %}
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between gap-3">
+        <span class="font-medium text-charcoal text-sm truncate">{{ item.formation.name }}</span>
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-bold">{{ item.score20 }}/20</span>
+            {% if item.status == 'valid' %}
+                <span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">Validé</span>
+            {% elif item.status == 'failed' %}
+                <span class="px-2 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">Échu</span>
+            {% elif item.status == 'not_transmitted' %}
+                <span class="px-2 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold">Non transmis</span>
+            {% elif item.status == 'completed' %}
+                <span class="px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold">Terminé</span>
+            {% elif item.status == 'in_progress' %}
+                <span class="px-2 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold">En cours</span>
+            {% else %}
+                <span class="px-2 py-1 bg-gray-50 text-gray-500 rounded-full text-xs font-bold">Pas commencé</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20">
+    <i class="fas fa-book-open text-6xl text-gray-300 mb-6"></i>
+    <h3 class="text-2xl font-bold text-charcoal mb-2">Aucune formation</h3>
+    <p class="text-gray-500">Ce serviteur n'a aucune formation assignée pour le moment.</p>
+</div>
+{% endif %}
+{% endblock %}

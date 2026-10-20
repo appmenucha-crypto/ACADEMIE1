@@ -39,7 +39,7 @@
                 <select name="formation_id" id="formation_select" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-accent-blue/20 outline-none cursor-pointer font-medium">
                     <option value="" disabled selected>Choisir une formation...</option>
                     {% for formation in formations %}
-                        <option value="{{ formation.id }}">{{ formation.name }}</option>
+                        <option value="{{ formation.id }}">{{ formation.name }}{% if not formation.is_active %} (inactive){% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
