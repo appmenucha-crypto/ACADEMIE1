@@ -133,6 +133,7 @@ class AdminReferantForm(forms.ModelForm):
             'first_name',
             'last_name',
             'email',
+            'phone_number',
             'password',
         ]
 
@@ -141,6 +142,7 @@ class AdminReferantForm(forms.ModelForm):
             'first_name': "Prénom",
             'last_name': "Nom",
             'email': "Adresse e-mail",
+            'phone_number': "Numéro de téléphone",
         }
 
         widgets = {
@@ -160,6 +162,10 @@ class AdminReferantForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': "exemple@domaine.com"
             }),
+            'phone_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': "Ex. : +221 77 000 00 00"
+            }),
         }
 
     def save(self, commit=True):
@@ -175,6 +181,84 @@ class AdminReferantForm(forms.ModelForm):
             referant.save()
 
         return referant
+
+
+class AdminEditReferantForm(forms.ModelForm):
+    """Modification des informations d'un référent existant.
+
+    Le mot de passe n'est pas editable ici : il est réinitialisé
+    séparément via l'action « Mot de passe » de la page des référents.
+    """
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+            'phone_number',
+        ]
+
+        labels = {
+            'username': "Nom d'utilisateur",
+            'first_name': "Prénom",
+            'last_name': "Nom",
+            'email': "Adresse e-mail",
+            'phone_number': "Numéro de téléphone",
+        }
+
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': "Ex. : jean.dupont"
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': "Entrez le prénom"
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': "Entrez le nom"
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': "exemple@domaine.com"
+            }),
+            'phone_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': "Ex. : +221 77 000 00 00"
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Tous les champs partagent la classe CSS des formulaires de l'admin.
+        for field in self.fields.values():
+            classes = field.widget.attrs.get('class', '')
+            if 'form-control' not in classes:
+                field.widget.attrs['class'] = (
+                    (classes + ' form-control').strip()
+                )
+
+    def clean_username(self):
+        # L'unicité du nom d'utilisateur est vérifiée par Django
+        # (AbstractUser.username est unique) : l'instance courante
+        # est exclue automatiquement de la validation.
+        return (self.cleaned_data.get('username') or '').strip()
+
+    def save(self, commit=True):
+        referant = super().save(commit=False)
+
+        # Le rôle ne change pas lors d'une simple modification.
+        referant.role = 'referant'
+
+        if commit:
+            referant.save()
+
+        return referant
+
 
 # === FORMATION AVANCÉE ===
 from django.forms import inlineformset_factory, modelformset_factory

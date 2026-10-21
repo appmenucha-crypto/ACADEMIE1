@@ -23,7 +23,7 @@ from .models import CustomUser, Formation, ServiteurFormation, Bloc, AudioFile, 
 
 logger = logging.getLogger(__name__)
 
-from .forms import ServiteurForm, FormationCreationForm, FormationEditForm, VertumetreForm, AdminReferantForm
+from .forms import ServiteurForm, FormationCreationForm, FormationEditForm, VertumetreForm, AdminReferantForm, AdminEditReferantForm
 from .models_vertumetre import ServiteurVertumetre, VertumetreSubmission
 from .quiz import serviteur_answers_summary
 
@@ -46,6 +46,8 @@ def admin_dashboard(request):
     vertumetre_count = ServiteurVertumetre.objects.filter(last_submitted_at__isnull=False).count()
     # Formations dont le questionnaire n'a jamais été transmis
     not_transmitted_count = ServiteurFormation.objects.filter(statut=3).count()
+    # Formations validées (questionnaire transmis et réussi)
+    validated_count = ServiteurFormation.objects.filter(statut=1).count()
     
     # Graph data
     sf_stats = {
@@ -73,7 +75,8 @@ def admin_dashboard(request):
         'recent_data': recent_data,
         'top_serviteurs': top_serviteurs,
         'vertumetre_count': vertumetre_count,
-        'not_transmitted_count': not_transmitted_count
+        'not_transmitted_count': not_transmitted_count,
+        'validated_count': validated_count
     })
 
 @login_required(login_url='/')
@@ -2288,6 +2291,10 @@ def admin_referants(request):
     if not (request.user.role == 'admin' or request.user.is_superuser):
         return redirect('/')
 
+    # Formulaire de modification d'un référent (bound en cas d'erreur)
+    edit_forms = {}
+    edit_referant_pk = None
+
     # Traitement des formulaires
     if request.method == 'POST':
 
@@ -2408,6 +2415,47 @@ def admin_referants(request):
                     )
 
         # ==========================================
+        # MODIFICATION D'UN RÉFÉRENT
+        # ==========================================
+        elif 'edit_referant' in request.POST:
+            ref_pk = request.POST.get('edit_referant_pk', '').strip()
+
+            form = AdminReferantForm()
+
+            try:
+                referent = CustomUser.objects.get(pk=ref_pk, role='referant')
+            except (CustomUser.DoesNotExist, ValueError):
+                messages.error(request, "Le référent sélectionné est introuvable.")
+
+            else:
+                edit_form = AdminEditReferantForm(
+                    request.POST,
+                    instance=referent,
+                    auto_id=f'edit_{referent.pk}_%s',
+                )
+
+                if edit_form.is_valid():
+                    referent = edit_form.save()
+
+                    messages.success(
+                        request,
+                        f"Le référent « {referent.first_name} "
+                        f"{referent.last_name} » a été modifié avec succès."
+                    )
+
+                    return redirect('traning:admin_referants')
+
+                messages.error(
+                    request,
+                    "Le formulaire contient des erreurs. "
+                    "Veuillez vérifier les champs."
+                )
+
+                # Le formulaire en erreur est renvoyé à la modale correspondante.
+                edit_forms[referent.pk] = edit_form
+                edit_referant_pk = referent.pk
+
+        # ==========================================
         # RÉINITIALISATION DU MOT DE PASSE
         # ==========================================
         elif 'reset_password' in request.POST:
@@ -2471,6 +2519,16 @@ def admin_referants(request):
     ).order_by('-date_joined')
 
     departements = Departement.objects.all().order_by('name')
+
+    # Un formulaire de modification par référent (pré-rempli).
+    # Les formulaires en erreur (validation échouée) sont conservés.
+    for ref in referents:
+        if ref.pk not in edit_forms:
+            edit_forms[ref.pk] = AdminEditReferantForm(
+                instance=ref,
+                auto_id=f'edit_{ref.pk}_%s',
+            )
+        ref.edit_form = edit_forms[ref.pk]
 
     # ==========================================
     # INFORMATIONS DÉTAILLÉES (référents + serviteurs)
@@ -2556,5 +2614,7 @@ def admin_referants(request):
         'all_serviteurs': all_serviteurs,
         'departements': departements,
         'form': form,
+        'edit_forms': edit_forms,
+        'edit_referant_pk': edit_referant_pk,
     })
 

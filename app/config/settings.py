@@ -93,8 +93,8 @@ AUTH_USER_MODEL = 'traning.CustomUser'
 
 #DATABASES = {
     #"default": {
-       #"ENGINE": "django.db.backends.sqlite3",
-       #"NAME": BASE_DIR / "db.sqlite3",
+      # "ENGINE": "django.db.backends.sqlite3",
+     #  "NAME": BASE_DIR / "db.sqlite3",
        # SQLite verrouille la base en écriture : le mode WAL permet aux
        # lectures de ne pas être bloquées pendant une écriture (sessions,
        # messages, formations) et le busy_timeout évite les erreurs

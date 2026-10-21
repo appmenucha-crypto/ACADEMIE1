@@ -386,7 +386,51 @@ class ReferantAdminTest(TestCase):
         ref = CustomUser.objects.get(username='testref')
         self.assertEqual(ref.role, 'referant')
 
-    def test_assign_serviteur_to_referant(self):
+    def test_create_referant_with_phone_number(self):
+        """Le numéro de téléphone est enregistré et affiché dans la liste."""
+        c = Client()
+        c.login(username='admintest', password='admin123')
+        post = {
+            'create_referant': '1',
+            'username': 'refavecphone',
+            'first_name': 'Avec',
+            'last_name': 'Telephone',
+            'email': 'avecphone@test.com',
+            'phone_number': '22177000000',
+            'password': 'refpass123',
+            'role': 'referant',
+        }
+        resp = c.post('/admin/referants/', data=post, follow=True)
+        self.assertEqual(resp.status_code, 200)
+
+        ref = CustomUser.objects.get(username='refavecphone')
+        self.assertEqual(ref.phone_number, '22177000000')
+
+        # Le numéro apparaît dans la liste des référents
+        body = resp.content.decode('utf-8')
+        self.assertIn('22177000000', body)
+
+    def test_create_referant_without_phone_number(self):
+        """Le numéro de téléphone reste facultatif à la création."""
+        c = Client()
+        c.login(username='admintest', password='admin123')
+        post = {
+            'create_referant': '1',
+            'username': 'refsansphone',
+            'first_name': 'Sans',
+            'last_name': 'Telephone',
+            'email': 'sansphone@test.com',
+            'password': 'refpass123',
+            'role': 'referant',
+        }
+        resp = c.post('/admin/referants/', data=post, follow=True)
+        self.assertEqual(resp.status_code, 200)
+
+        ref = CustomUser.objects.get(username='refsansphone')
+        self.assertIn(ref.phone_number, (None, ''))
+        self.assertIn('Téléphone non renseigné', resp.content.decode('utf-8'))
+
+    def test_assign_serviteur_to_referent(self):
         c = Client()
         c.login(username='admintest', password='admin123')
         ref = CustomUser.objects.create_user('refuser', email='ref@test.com', password='refpass123', first_name='Ref1', last_name='Ref1', role='referant')
@@ -798,6 +842,86 @@ class ReferantUserWorkflowTest(TestCase):
         c.logout()
         resp = c.post('/', data={'username': 'refuser', 'password': 'refpass123'})
         self.assertEqual(resp.status_code, 302)
+
+    def test_admin_can_modify_referent(self):
+        """L'admin doit pouvoir modifier les informations d'un référent."""
+        c = Client()
+        c.login(username='admintest', password='admin123')
+        post = {
+            'edit_referant': '1',
+            'edit_referant_pk': self.ref.pk,
+            'username': 'refuser_modifie',
+            'first_name': 'Nom',
+            'last_name': 'Modifie',
+            'email': 'modifie@test.com',
+            'phone_number': '22177000000',
+        }
+        resp = c.post('/admin/referants/', data=post, follow=True)
+        self.assertEqual(resp.status_code, 200)
+
+        self.ref.refresh_from_db()
+        self.assertEqual(self.ref.username, 'refuser_modifie')
+        self.assertEqual(self.ref.first_name, 'Nom')
+        self.assertEqual(self.ref.last_name, 'Modifie')
+        self.assertEqual(self.ref.email, 'modifie@test.com')
+        self.assertEqual(self.ref.phone_number, '22177000000')
+        self.assertEqual(self.ref.role, 'referant')
+
+    def test_modify_referant_keeps_password_and_login(self):
+        """La modification ne doit pas altérer le mot de passe du référent."""
+        c = Client()
+        c.login(username='admintest', password='admin123')
+        post = {
+            'edit_referant': '1',
+            'edit_referant_pk': self.ref.pk,
+            'username': 'refuser',
+            'first_name': 'Ref1',
+            'last_name': 'Ref1',
+            'email': 'ref@test.com',
+        }
+        resp = c.post('/admin/referants/', data=post, follow=True)
+        self.assertEqual(resp.status_code, 200)
+
+        c.logout()
+        resp = c.post('/', data={'username': 'refuser', 'password': 'refpass123'})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, '/referant/')
+
+    def test_modify_referent_rejects_duplicate_username(self):
+        """Un nom d'utilisateur déjà utilisé par un autre compte est refusé."""
+        CustomUser.objects.create_user(
+            'existant', email='existant@test.com', password='pass1234',
+            first_name='Ex', last_name='istant', role='serviteur')
+        c = Client()
+        c.login(username='admintest', password='admin123')
+        post = {
+            'edit_referant': '1',
+            'edit_referant_pk': self.ref.pk,
+            'username': 'existant',
+            'first_name': 'Ref1',
+            'last_name': 'Ref1',
+            'email': 'ref@test.com',
+        }
+        resp = c.post('/admin/referants/', data=post, follow=True)
+        self.assertEqual(resp.status_code, 200)
+
+        self.ref.refresh_from_db()
+        self.assertEqual(self.ref.username, 'refuser')
+        self.assertIn('existant', resp.content.decode('utf-8'))
+        # La modale du référent concerned est rouverte avec les erreurs
+        self.assertIn('modal-has-errors', resp.content.decode('utf-8'))
+
+    def test_referants_page_shows_edit_modal(self):
+        """La page des référents doit proposer une modale de modification."""
+        c = Client()
+        c.login(username='admintest', password='admin123')
+        resp = c.get('/admin/referants/')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        self.assertIn(f'editModal-{self.ref.pk}', body)
+        self.assertIn('Modifier', body)
+        # Les champs pré-remplis sont présents
+        self.assertIn('value="refuser"', body)
 
 
 class ReferantDashboardStatsTest(TestCase):
@@ -1468,6 +1592,16 @@ class AdminDashboardCardsTest(TestCase):
     def test_carte_non_transmis_lien_vers_le_filtre(self):
         body = self._body()
         self.assertIn('/admin/results/?filtre=non_transmis', body)
+
+    def test_carte_valide_presente_avec_le_bon_compte(self):
+        body = self._body()
+        self.assertIn('Validé', body)
+        # Le compteur affiche bien 1 (une seule formation validée)
+        self.assertRegex(body, r'Validé\s*</p>\s*<p class="text-2xl sm:text-3xl font-bold text-gray-900">1</p>')
+
+    def test_carte_valide_lien_vers_le_filtre(self):
+        body = self._body()
+        self.assertIn('/admin/results/?filtre=valide', body)
 
 class FormationActiveTest(TestCase):
     """L'admin gère l'activation des formations : les inactives restent

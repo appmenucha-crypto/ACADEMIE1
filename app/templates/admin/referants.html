@@ -151,6 +151,11 @@
                             {{ ref.email|default:"Adresse e-mail non renseignée" }}
                         </div>
 
+                        <div class="referent-email">
+                            <i class="fas fa-phone mr-1"></i>
+                            {{ ref.phone_number|default:"Téléphone non renseigné" }}
+                        </div>
+
                     </td>
 
 
@@ -197,6 +202,17 @@
                                 <i class="fas fa-user-plus"></i>
 
                                 <span class="action-label">Ajouter</span>
+
+                            </button>
+
+                            <button type="button"
+                                    class="action-button action-edit"
+                                    onclick="openModal('editModal-{{ ref.pk }}')"
+                                    title="Modifier le référent">
+
+                                <i class="fas fa-pen"></i>
+
+                                <span class="action-label">Modifier</span>
 
                             </button>
 
@@ -857,6 +873,123 @@
 
                 </div>
 
+                <!-- ================================================= -->
+                <!-- MODALE : MODIFIER UN RÉFÉRENT                       -->
+                <!-- ================================================= -->
+
+                <div id="editModal-{{ ref.pk }}"
+                     class="custom-modal hidden{% if edit_referant_pk == ref.pk %} modal-has-errors{% endif %}"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-labelledby="edit-title-{{ ref.pk }}">
+
+                    <div class="modal-backdrop"
+                         onclick="closeModal('editModal-{{ ref.pk }}')">
+                    </div>
+
+                    <div class="modal-content">
+
+                        <div class="modal-header">
+
+                            <div class="modal-icon modal-icon-gold">
+                                <i class="fas fa-user-edit"></i>
+                            </div>
+
+                            <div>
+                                <h2 id="edit-title-{{ ref.pk }}"
+                                    class="modal-title">
+                                    Modifier le référent
+                                </h2>
+
+                                <p class="modal-description">
+                                    Référent : {{ ref.username }}
+                                </p>
+                            </div>
+
+                            <button type="button"
+                                    class="modal-close"
+                                    onclick="closeModal('editModal-{{ ref.pk }}')"
+                                    aria-label="Fermer">
+
+                                <i class="fas fa-times"></i>
+
+                            </button>
+
+                        </div>
+
+                        <form method="post" class="modal-form">
+
+                            {% csrf_token %}
+
+                            <input type="hidden"
+                                   name="edit_referant_pk"
+                                   value="{{ ref.pk }}">
+
+                            {% with edit_form=ref.edit_form %}
+
+                                {% if edit_form.non_field_errors %}
+                                    <div class="form-errors">
+                                        {{ edit_form.non_field_errors }}
+                                    </div>
+                                {% endif %}
+
+                                <div class="form-grid referent-form-grid">
+
+                                    {% for field in edit_form %}
+
+                                        <div class="form-group">
+
+                                            <label for="{{ field.id_for_label }}">
+                                                {{ field.label }}
+
+                                                {% if field.field.required %}
+                                                    <span class="required-star">*</span>
+                                                {% endif %}
+                                            </label>
+
+                                            {{ field }}
+
+                                            {% if field.errors %}
+                                                <div class="field-error">
+                                                    {{ field.errors }}
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+
+                                    {% endfor %}
+
+                                </div>
+
+                            {% endwith %}
+
+                            <div class="modal-actions">
+
+                                <button type="button"
+                                        onclick="closeModal('editModal-{{ ref.pk }}')"
+                                        class="secondary-button">
+
+                                    Annuler
+
+                                </button>
+
+                                <button type="submit"
+                                        name="edit_referant"
+                                        class="submit-button submit-button-gold">
+
+                                    <i class="fas fa-save mr-2"></i>
+                                    Enregistrer
+
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
 {% endfor %}
 
     </div>
@@ -1252,6 +1385,16 @@
 
 .action-assign:hover {
     background: #DCFCE7;
+}
+
+.action-edit {
+    color: #1D4ED8;
+    background: #EFF6FF;
+    border-color: #DBEAFE;
+}
+
+.action-edit:hover {
+    background: #DBEAFE;
 }
 
 .action-details i {
@@ -2364,6 +2507,19 @@
             }
 
         });
+
+
+        // Rouvrir la modale de modification lorsque la validation
+        // du formulaire a échoué afin d'afficher les erreurs.
+
+        document.querySelectorAll('.custom-modal.modal-has-errors').forEach(
+            function (modal) {
+
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+
+            }
+        );
 
 
         // Réinitialiser le scroll après la fermeture d'une modale.
